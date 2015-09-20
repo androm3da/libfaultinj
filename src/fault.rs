@@ -83,7 +83,9 @@ macro_rules! matchesPath(
 
 #[no_mangle]
 pub extern "C" fn open(filename_: *const c_char, flags: c_int, mode: libc::mode_t) -> c_int {
-    let filename: String = unsafe { std::ffi::CStr::from_ptr(filename_).to_string_lossy().into_owned() };
+    let filename: String = unsafe {
+        std::ffi::CStr::from_ptr(filename_).to_string_lossy().into_owned()
+    };
     let open_func = get_libc_func!(OpenFunc, "open");
     let fd: c_int = open_func(filename_, flags, mode);
 
@@ -148,4 +150,3 @@ pub extern "C" fn close(fd: c_int) -> c_int {
 
     ret
 }
-
