@@ -1,0 +1,14 @@
+
+[package]
+name="faultinj"
+version="0.1.0"
+
+[dependencies]
+libc = "*"
+lazy_static = "*"
+errno = "*"
+
+[lib]
+name="faultinj"
+path="src/fault.rs"
+crate_type = ["dylib", "rlib", ]
