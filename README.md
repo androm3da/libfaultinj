@@ -2,6 +2,9 @@
 
 `libfaultinj` is a fault-injection library.
 
+[![Build Status](https://travis-ci.org/androm3da/libfaultinj.svg?branch=master)](https://travis-ci.org/androm3da/libfaultinj)
+
+
 ## Concept
 
 Use `LD_PRELOAD` to load `libfaultinj` in front of your platform's C library.  It will 
