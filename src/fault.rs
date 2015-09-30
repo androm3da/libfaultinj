@@ -2,6 +2,7 @@
 
 extern crate libc;
 extern crate errno;
+extern crate rand;
 
 
 use std::collections::hash_state::DefaultState;
@@ -111,10 +112,25 @@ use std::path::Path;
 macro_rules! returnError(
         ($fd: expr, $funcname:expr, $err:expr) =>
     ({
+        use rand::Rng;
+        const LIKELIHOOD_CERTAIN_PCT: f32 = 100f32;
+        
         if ERR_FDS.read().unwrap().contains(&$fd) {
-            set_errno(Errno(get_errno($funcname)));
+            let err_thresh = match env::var("LIBFAULTINJ_ERROR_LIKELIHOOD_PCT") {
+                Ok(p) => match p.parse::<f32>() {
+                    Ok(i) => i / 100f32,
+                    Err(_) => LIKELIHOOD_CERTAIN_PCT / 100f32,
+                },
+                Err(_) => LIKELIHOOD_CERTAIN_PCT / 100f32,
+            };
+            let mut rng = rand::thread_rng();
+            let rand_val = rng.gen_range::<f32>(0., 1f32);
 
-            return $err;
+            if  rand_val < (err_thresh) {
+                set_errno(Errno(get_errno($funcname)));
+
+                return $err;
+            };
         }
     })
 );
@@ -226,12 +242,9 @@ pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
 #[allow(non_snake_case)]
 pub extern "C" fn mmap__DISABLED(addr: *mut c_void, length_: size_t, prot: c_int,
                                  flags: c_int, fd: c_int, offset: off_t) -> *mut c_void {
-    use std::mem::transmute;
-
-    let map_failed: * mut c_void = unsafe { transmute::<i64, *mut c_void>(-1) }; // FIXME only works on 64-bit?
     let mmap_func = get_libc_func!(MmapFunc, "mmap");
 
-    injectFaults!(fd, "mmap", map_failed);
+    injectFaults!(fd, "mmap", libc::MAP_FAILED);
 
     let ret: *mut c_void = mmap_func(addr, length_, prot, flags, fd, offset);
 

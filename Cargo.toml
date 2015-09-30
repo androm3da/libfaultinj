@@ -1,12 +1,13 @@
 
 [package]
 name="faultinj"
-version="0.1.0"
+version="0.1.1"
 
 [dependencies]
 libc = "*"
 lazy_static = "*"
 errno = "*"
+rand = "*"
 
 [lib]
 name="faultinj"
