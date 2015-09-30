@@ -7,5 +7,3 @@ sudo: false
 script:
  - cargo build
  - cargo test
- - LD_PRELOAD=target/debug/libfaultinj.so LIBFAULTINJ_ERROR_PATH=Cargo.toml LIBFAULTINJ_ERROR_OPEN=35 cat Cargo.toml ; [ $? -eq 1 ]
- - LD_PRELOAD=target/debug/libfaultinj.so LIBFAULTINJ_ERROR_PATH=Cargo.toml LIBFAULTINJ_ERROR_OPEN=35 cat src/fault.rs > /dev/null

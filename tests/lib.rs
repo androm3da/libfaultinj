@@ -1,12 +1,15 @@
 
-extern crate faultinj;
 
 #[cfg(test)]
 mod tests {
-//  use super::*;
+    use std::process::Command;
 
     #[test]
     fn tbd() {
-        assert_eq!(0, 0);
+        let status = Command::new("./tests/test.sh").status().unwrap_or_else(|e| {
+            panic!("failed to execute process: {}", e)
+        });
+
+        assert!(status.success());
     }
 }
