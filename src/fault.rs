@@ -10,8 +10,10 @@ use std::hash::{Hasher, SipHasher};
 #[macro_use]
 extern crate lazy_static;
 lazy_static! {
-    static ref DELAY_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>> = RwLock::new(Default::default());
-    static ref ERR_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>> = RwLock::new(Default::default());
+    static ref DELAY_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>>
+                                                = RwLock::new(Default::default());
+    static ref ERR_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>>
+                                                = RwLock::new(Default::default());
 }
 
 
@@ -86,8 +88,7 @@ macro_rules! matchesPath(
         }
     });
 
-fn initialize_sets()
-{
+fn initialize_sets() {
     let fd: c_int = 0;
     DELAY_FDS.read().unwrap().contains(&fd);
     ERR_FDS.read().unwrap().contains(&fd);
