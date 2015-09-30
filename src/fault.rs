@@ -25,17 +25,17 @@ macro_rules! get_libc_func(
                 use std::mem::transmute;
                 use std::path::Path;
 
-                let system_c_library: &str = "libc.so.6";
+                const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
 
                 unsafe {
-                    let libc_dl = match DynamicLibrary::open(Some(Path::new(system_c_library))) {
+                    let libc_dl = match DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))) {
                         Ok(libc) => libc,
                         Err(error) => panic!("Couldn't open libc: '{}'", error),
                     };
 
                     match libc_dl.symbol::<c_void>($funcname) {
                         Ok(open_func) => transmute::<* mut c_void, $destination_t>(open_func),
-                        Err(error) => panic!("Couldn't '{}'", error),
+                        Err(error) => panic!("Couldn't find '{}': '{}'", $funcname, error),
                 }
             }
         })
@@ -47,8 +47,7 @@ use std::sync::RwLock;
 
 use std::collections::hash_set::HashSet;
 
-use libc::{c_char, c_int, c_void};
-
+use libc::{c_char, c_int, c_void, off_t};
 
 
 type OpenFunc = fn(* const c_char, c_int, libc::mode_t) -> c_int;
@@ -56,22 +55,69 @@ use libc::types::os::arch::posix88::ssize_t;
 type ReadFunc = fn(fd: c_int, buf: * mut c_void, nbytes: c_int) -> ssize_t;
 type WriteFunc = ReadFunc;
 type CloseFunc = fn(fd: c_int) -> c_int;
+type SeekFunc = fn(c_int, off_t, c_int) -> off_t;
 
 use std::env;
 
-fn get_delay_amount_ms() -> u32 {
-    let default_delay_amount_ms = 200;
+fn get_delay_amount_ms(funcname: &str) -> u32 {
+    const DEFAULT_DELAY_AMOUNT_MS: u32 = 200;
+    let err_prefix = "LIBFAULTINJ_DELAY_".to_string();
+    let env_name = err_prefix + &String::from(funcname).to_uppercase();
 
-    match env::var("LIBFAULTINJ_DELAY_MS") {
+    match env::var(env_name) {
         Ok(p) => match p.parse::<u32>() {
             Ok(i) => i,
-            Err(_) => default_delay_amount_ms,
+            Err(_) => DEFAULT_DELAY_AMOUNT_MS,
         },
-        Err(_) => default_delay_amount_ms,
+        Err(_) => DEFAULT_DELAY_AMOUNT_MS,
+    }
+}
+
+fn get_errno(funcname: &str) -> i32 {
+    use std::string::String;
+
+    const DEFAULT_ERRNO: i32 = 1;
+    let err_prefix = "LIBFAULTINJ_ERROR_".to_string();
+    let env_name = err_prefix + &String::from(funcname).to_uppercase();
+
+    match env::var(env_name) {
+        Ok(p) => match p.parse::<i32>() {
+            Ok(i) => i,
+            Err(_) => DEFAULT_ERRNO,
+        },
+        Err(_) => DEFAULT_ERRNO,
+    }
+}
+
+fn insert_delay(fd: c_int, funcname: &str) {
+    use std::thread;
+
+    let delay_match = DELAY_FDS.read().unwrap().contains(&fd);
+
+    if delay_match {
+        thread::sleep_ms(get_delay_amount_ms(funcname));
     }
 }
 
 use std::path::Path;
+
+macro_rules! returnError(
+        ($fd: expr, $funcname:expr) =>
+    {
+        if ERR_FDS.read().unwrap().contains(&$fd) {
+            set_errno(Errno(get_errno($funcname)));
+
+            return -1
+        }
+    });
+
+macro_rules! injectFaults(
+        ($fd: expr, $funcname:expr) =>
+        {
+            insert_delay($fd, $funcname);
+
+            returnError!($fd, $funcname);
+        });
 
 macro_rules! matchesPath(
         ($filename: expr, $env_name: expr) =>
@@ -88,48 +134,57 @@ macro_rules! matchesPath(
         }
     });
 
-fn initialize_sets() {
-    let fd: c_int = 0;
-    DELAY_FDS.read().unwrap().contains(&fd);
-    ERR_FDS.read().unwrap().contains(&fd);
+macro_rules! do_open(
+    ($filename_:expr, $flags:expr, $mode:expr) =>
+    ({
+        let filename: String = unsafe {
+            std::ffi::CStr::from_ptr($filename_).to_string_lossy().into_owned()
+        };
+        let open_func = get_libc_func!(OpenFunc, "open");
+        let fd: c_int = open_func($filename_, $flags, $mode);
+
+        if matchesPath!(filename, "LIBFAULTINJ_ERROR_PATH") {
+            ERR_FDS.write().unwrap().insert(fd);
+        }
+
+        if matchesPath!(filename, "LIBFAULTINJ_DELAY_PATH") {
+            DELAY_FDS.write().unwrap().insert(fd);
+        }
+
+        returnError!(fd, "open");
+
+        fd
+    })
+    );
+
+#[no_mangle]
+pub extern "C" fn open64(filename_: *const c_char, flags: c_int, mode: libc::mode_t) -> c_int {
+    do_open!(filename_, flags, mode)
 }
 
 #[no_mangle]
 pub extern "C" fn open(filename_: *const c_char, flags: c_int, mode: libc::mode_t) -> c_int {
-    let filename: String = unsafe {
-        std::ffi::CStr::from_ptr(filename_).to_string_lossy().into_owned()
-    };
-    let open_func = get_libc_func!(OpenFunc, "open");
-    let fd: c_int = open_func(filename_, flags, mode);
-
-    initialize_sets();
-
-    if matchesPath!(filename, "LIBFAULTINJ_DELAY_PATH") {
-        DELAY_FDS.write().unwrap().insert(fd);
-    }
-
-    fd
+    do_open!(filename_, flags, mode)
 }
 
 #[no_mangle]
 pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
-    use std::thread;
     let read_func = get_libc_func!(ReadFunc, "read");
-
-    let delay_match = DELAY_FDS.read().unwrap().contains(&fd);
-    let err_match = ERR_FDS.read().unwrap().contains(&fd);
 
     let ret: ssize_t = read_func(fd, buf, nbytes);
 
-    if delay_match {
-        thread::sleep_ms(get_delay_amount_ms());
-    }
-    if err_match {
-        use libc::consts::os::posix88::EIO;
-        set_errno(Errno(EIO));
+    injectFaults!(fd, "read");
 
-        return -1
-    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn lseek(fd: c_int, offset: off_t, whence: c_int) -> off_t {
+    let seek_func = get_libc_func!(SeekFunc, "lseek");
+
+    let ret: off_t = seek_func(fd, offset, whence);
+
+    injectFaults!(fd, "lseek");
 
     ret
 }
@@ -138,16 +193,9 @@ pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
 pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
     let write_func = get_libc_func!(WriteFunc, "write");
 
-    let matches = DELAY_FDS.read().unwrap().contains(&fd);
-
     let ret: ssize_t = write_func(fd, buf, nbytes);
 
-    if matches {
-        use libc::consts::os::posix88::EIO;
-        set_errno(Errno(EIO));
-
-        return -1
-    }
+    injectFaults!(fd, "write");
 
     ret
 }
