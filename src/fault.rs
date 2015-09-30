@@ -62,7 +62,7 @@ use std::env;
 fn get_delay_amount_ms(funcname: &str) -> u32 {
     const DEFAULT_DELAY_AMOUNT_MS: u32 = 200;
     let err_prefix = "LIBFAULTINJ_DELAY_".to_string();
-    let env_name = err_prefix + &String::from(funcname).to_uppercase();
+    let env_name = err_prefix + &String::from(funcname).to_uppercase() + "_MS";
 
     match env::var(env_name) {
         Ok(p) => match p.parse::<u32>() {
@@ -78,7 +78,7 @@ fn get_errno(funcname: &str) -> i32 {
 
     const DEFAULT_ERRNO: i32 = 1;
     let err_prefix = "LIBFAULTINJ_ERROR_".to_string();
-    let env_name = err_prefix + &String::from(funcname).to_uppercase();
+    let env_name = err_prefix + &String::from(funcname).to_uppercase() + "_ERRNO";
 
     match env::var(env_name) {
         Ok(p) => match p.parse::<i32>() {
