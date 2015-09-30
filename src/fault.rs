@@ -7,9 +7,10 @@ extern crate errno;
 #[macro_use]
 extern crate lazy_static;
 lazy_static! {
-    static ref DELAY_FDS: Mutex<HashSet<c_int>> = Mutex::new(HashSet::new());
-    static ref ERR_FDS: Mutex<HashSet<c_int>> = Mutex::new(HashSet::new());
+    static ref DELAY_FDS: RwLock<HashSet<c_int>> = RwLock::new(HashSet::new());
+    static ref ERR_FDS: RwLock<HashSet<c_int>> = RwLock::new(HashSet::new());
 }
+
 
 macro_rules! get_libc_func(
     ($destination_t:ty, $funcname:expr) =>
@@ -19,8 +20,10 @@ macro_rules! get_libc_func(
                 use std::mem::transmute;
                 use std::path::Path;
 
+                let system_c_library: &str = "libc.so.6";
+
                 unsafe {
-                    let libc_dl = match DynamicLibrary::open(Some(Path::new("libc.so.6"))) {
+                    let libc_dl = match DynamicLibrary::open(Some(Path::new(system_c_library))) {
                         Ok(libc) => libc,
                         Err(error) => panic!("Couldn't open libc: '{}'", error),
                     };
@@ -36,6 +39,7 @@ macro_rules! get_libc_func(
 
 use errno::{Errno, set_errno};
 use std::sync::Mutex;
+use std::sync::RwLock;
 
 use std::collections::hash_set::HashSet;
 
@@ -80,6 +84,12 @@ macro_rules! matchesPath(
         }
     });
 
+fn initialize_sets()
+{
+    let fd: c_int = 0;
+    DELAY_FDS.read().unwrap().contains(&fd);
+    ERR_FDS.read().unwrap().contains(&fd);
+}
 
 #[no_mangle]
 pub extern "C" fn open(filename_: *const c_char, flags: c_int, mode: libc::mode_t) -> c_int {
@@ -89,8 +99,10 @@ pub extern "C" fn open(filename_: *const c_char, flags: c_int, mode: libc::mode_
     let open_func = get_libc_func!(OpenFunc, "open");
     let fd: c_int = open_func(filename_, flags, mode);
 
+    initialize_sets();
+
     if matchesPath!(filename, "LIBFAULTINJ_DELAY_PATH") {
-        DELAY_FDS.lock().unwrap().insert(fd);
+        DELAY_FDS.write().unwrap().insert(fd);
     }
 
     fd
@@ -101,8 +113,8 @@ pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
     use std::thread;
     let read_func = get_libc_func!(ReadFunc, "read");
 
-    let delay_match = DELAY_FDS.lock().unwrap().contains(&fd);
-    let err_match = ERR_FDS.lock().unwrap().contains(&fd);
+    let delay_match = DELAY_FDS.read().unwrap().contains(&fd);
+    let err_match = ERR_FDS.read().unwrap().contains(&fd);
 
     let ret: ssize_t = read_func(fd, buf, nbytes);
 
@@ -123,7 +135,7 @@ pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
 pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
     let write_func = get_libc_func!(WriteFunc, "write");
 
-    let matches = DELAY_FDS.lock().unwrap().contains(&fd);
+    let matches = DELAY_FDS.read().unwrap().contains(&fd);
 
     let ret: ssize_t = write_func(fd, buf, nbytes);
 
@@ -143,9 +155,14 @@ pub extern "C" fn close(fd: c_int) -> c_int {
 
     let ret: c_int = close_func(fd);
 
-    let mut fds = DELAY_FDS.lock().unwrap();
-    if fds.contains(&fd) {
-        fds.remove(&fd);
+    let mut err_fds = ERR_FDS.write().unwrap();
+    if err_fds.contains(&fd) {
+        err_fds.remove(&fd);
+    }
+
+    let mut delay_fds = DELAY_FDS.write().unwrap();
+    if delay_fds.contains(&fd) {
+        delay_fds.remove(&fd);
     }
 
     ret
