@@ -7,6 +7,11 @@ extern crate errno;
 use std::collections::hash_state::DefaultState;
 use std::hash::{Hasher, SipHasher};
 
+//use std::dynamic_lib::DynamicLibrary;
+//const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
+//unsafe impl Sync for DynamicLibrary { }
+//unsafe impl Send for DynamicLibrary { }
+
 #[macro_use]
 extern crate lazy_static;
 lazy_static! {
@@ -14,8 +19,8 @@ lazy_static! {
                                                 = RwLock::new(Default::default());
     static ref ERR_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>>
                                                 = RwLock::new(Default::default());
+    //static ref LIBC: RwLock<DynamicLibrary> = RwLock::new(DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))).unwrap());
 }
-
 
 macro_rules! get_libc_func(
     ($destination_t:ty, $funcname:expr) =>
@@ -47,13 +52,15 @@ use std::sync::RwLock;
 
 use std::collections::hash_set::HashSet;
 
-use libc::{c_char, c_int, c_void, off_t};
+use libc::{c_char, c_int, c_void, off_t, size_t};
+use libc::types::os::arch::posix88::ssize_t;
 
 
 type OpenFunc = fn(* const c_char, c_int, libc::mode_t) -> c_int;
-use libc::types::os::arch::posix88::ssize_t;
 type ReadFunc = fn(fd: c_int, buf: * mut c_void, nbytes: c_int) -> ssize_t;
 type WriteFunc = ReadFunc;
+type MmapFunc = fn(addr: *mut c_void, length_: size_t, prot: c_int,
+                   flags: c_int, fd: c_int, offset: off_t) -> *mut c_void;
 type CloseFunc = fn(fd: c_int) -> c_int;
 type SeekFunc = fn(c_int, off_t, c_int) -> off_t;
 
@@ -102,21 +109,22 @@ fn insert_delay(fd: c_int, funcname: &str) {
 use std::path::Path;
 
 macro_rules! returnError(
-        ($fd: expr, $funcname:expr) =>
-    {
+        ($fd: expr, $funcname:expr, $err:expr) =>
+    ({
         if ERR_FDS.read().unwrap().contains(&$fd) {
             set_errno(Errno(get_errno($funcname)));
 
-            return -1
+            return $err;
         }
-    });
+    })
+);
 
 macro_rules! injectFaults(
-        ($fd: expr, $funcname:expr) =>
+        ($fd: expr, $funcname:expr, $err:expr) =>
         {
             insert_delay($fd, $funcname);
 
-            returnError!($fd, $funcname);
+            returnError!($fd, $funcname, $err);
         });
 
 macro_rules! matchesPath(
@@ -142,6 +150,7 @@ macro_rules! do_open(
         };
         let open_func = get_libc_func!(OpenFunc, "open");
         let fd: c_int = open_func($filename_, $flags, $mode);
+        const INVALID_FD: c_int = -1;
 
         if matchesPath!(filename, "LIBFAULTINJ_ERROR_PATH") {
             ERR_FDS.write().unwrap().insert(fd);
@@ -151,7 +160,7 @@ macro_rules! do_open(
             DELAY_FDS.write().unwrap().insert(fd);
         }
 
-        returnError!(fd, "open");
+        returnError!(fd, "open", INVALID_FD);
 
         fd
     })
@@ -168,23 +177,33 @@ pub extern "C" fn open(filename_: *const c_char, flags: c_int, mode: libc::mode_
 }
 
 #[no_mangle]
+pub extern "C" fn creat(filename_: *const c_char, mode: libc::mode_t) -> c_int {
+    let flags = 0;
+    do_open!(filename_, flags, mode)
+}
+
+const SSIZE_ERR: ssize_t = -1i64;
+
+#[no_mangle]
 pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
     let read_func = get_libc_func!(ReadFunc, "read");
 
-    let ret: ssize_t = read_func(fd, buf, nbytes);
+    injectFaults!(fd, "read", SSIZE_ERR);
 
-    injectFaults!(fd, "read");
+    let ret: ssize_t = read_func(fd, buf, nbytes);
 
     ret
 }
 
 #[no_mangle]
 pub extern "C" fn lseek(fd: c_int, offset: off_t, whence: c_int) -> off_t {
+    const OFF_T_ERR: off_t = -1i64;
+
     let seek_func = get_libc_func!(SeekFunc, "lseek");
 
-    let ret: off_t = seek_func(fd, offset, whence);
+    injectFaults!(fd, "lseek", OFF_T_ERR);
 
-    injectFaults!(fd, "lseek");
+    let ret: off_t = seek_func(fd, offset, whence);
 
     ret
 }
@@ -193,9 +212,28 @@ pub extern "C" fn lseek(fd: c_int, offset: off_t, whence: c_int) -> off_t {
 pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
     let write_func = get_libc_func!(WriteFunc, "write");
 
+    injectFaults!(fd, "write", SSIZE_ERR);
+
     let ret: ssize_t = write_func(fd, buf, nbytes);
 
-    injectFaults!(fd, "write");
+    ret
+}
+
+// mmap() interception is disabled for now.  deadlocks on
+//   malloc_init_hard()->mmap()->DynamicLibrary::open()->malloc_init_hard(), at least
+//   on systems w/jemalloc.
+#[no_mangle]
+#[allow(non_snake_case)]
+pub extern "C" fn mmap__DISABLED(addr: *mut c_void, length_: size_t, prot: c_int,
+                                 flags: c_int, fd: c_int, offset: off_t) -> *mut c_void {
+    use std::mem::transmute;
+
+    let map_failed: * mut c_void = unsafe { transmute::<i64, *mut c_void>(-1) }; // FIXME only works on 64-bit?
+    let mmap_func = get_libc_func!(MmapFunc, "mmap");
+
+    injectFaults!(fd, "mmap", map_failed);
+
+    let ret: *mut c_void = mmap_func(addr, length_, prot, flags, fd, offset);
 
     ret
 }
