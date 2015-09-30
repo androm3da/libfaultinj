@@ -1,14 +1,17 @@
-#![feature(dynamic_lib)]
-#![feature(path_relative_from)]
+#![feature(dynamic_lib,path_relative_from,hashmap_hasher)]
 
 extern crate libc;
 extern crate errno;
 
+
+use std::collections::hash_state::DefaultState;
+use std::hash::{Hasher, SipHasher};
+
 #[macro_use]
 extern crate lazy_static;
 lazy_static! {
-    static ref DELAY_FDS: RwLock<HashSet<c_int>> = RwLock::new(HashSet::new());
-    static ref ERR_FDS: RwLock<HashSet<c_int>> = RwLock::new(HashSet::new());
+    static ref DELAY_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>> = RwLock::new(Default::default());
+    static ref ERR_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>> = RwLock::new(Default::default());
 }
 
 
@@ -38,7 +41,6 @@ macro_rules! get_libc_func(
 
 
 use errno::{Errno, set_errno};
-use std::sync::Mutex;
 use std::sync::RwLock;
 
 use std::collections::hash_set::HashSet;
