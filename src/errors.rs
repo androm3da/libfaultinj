@@ -46,7 +46,7 @@ macro_rules! get_libc_func(
 
 
 
-pub use libc::{c_char, c_int, c_void, off_t, size_t,mode_t};
+pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t,mode_t};
 pub use libc::types::os::arch::posix88::ssize_t;
 
 pub type OpenFunc = extern "C" fn(* const c_char, c_int, mode_t) -> c_int;
@@ -55,6 +55,7 @@ pub type WriteFunc = ReadFunc;
 pub type MmapFunc = extern "C" fn(addr: *mut c_void, length_: size_t, prot: c_int,
                    flags: c_int, fd: c_int, offset: off_t) -> *mut c_void;
 pub type CloseFunc = extern "C" fn(fd: c_int) -> c_int;
+pub type IoctlFunc = extern "C" fn(c_int, c_ulong, ...) -> c_int;
 pub type SeekFunc = extern "C" fn(c_int, off_t, c_int) -> off_t;
 pub type Dup2Func = extern "C" fn(c_int, c_int) -> c_int;
 pub type Dup3Func = extern "C" fn(c_int, c_int, c_int) -> c_int;

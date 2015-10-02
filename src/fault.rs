@@ -8,12 +8,14 @@ extern crate rand;
 extern crate lazy_static;
 
 
-pub use libc::{c_char, c_int, c_void, off_t, size_t,mode_t};
+pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, };
 pub use libc::types::os::arch::posix88::ssize_t;
 
 #[macro_use]
 mod errors;
-use errors::{OpenFunc,ReadFunc,WriteFunc,SeekFunc,CloseFunc,MmapFunc,Dup2Func,Dup3Func,ERR_FDS,DELAY_FDS,};
+use errors::{OpenFunc,ReadFunc,WriteFunc,SeekFunc,CloseFunc,
+             MmapFunc,Dup2Func,Dup3Func,IoctlFunc,
+             ERR_FDS,DELAY_FDS,};
 use errors::{remove_fd_if_present,add_fd_if_old_present,};
 
 // These functions are designed to conform to their 
@@ -59,7 +61,6 @@ pub extern "C" fn lseek(fd: c_int, offset: off_t, whence: c_int) -> off_t {
 
     injectFaults!(fd, "lseek", -1 as i64);
 
-    println!("lseek! fd {}, offset {}", fd, offset);
     seek_func(fd, offset, whence)
 }
 
@@ -127,4 +128,18 @@ pub extern "C" fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int {
     add_fd_if_old_present(oldfd, newfd);
 
     dup3_func(oldfd, newfd, flags)
+}
+
+
+// Disabled for now, causes errors when tested w/
+//   hwclock.
+#[no_mangle]
+#[allow(private_no_mangle_fns)]
+#[allow(dead_code)]
+/* pub */ extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: * mut c_char) -> c_int {
+    let ioctl_func = get_libc_func!(IoctlFunc, "ioctl");
+
+    injectFaults!(fd, "ioctl", -1 as c_int);
+
+    ioctl_func(fd, req, argp)
 }

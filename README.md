@@ -19,7 +19,10 @@ TODO: testing w/`DYLD_INSERT_LIBRARIES` on OS X or other similar platforms.
 
 ### Inject Errors
 First, set `LIBFAULTINJ_ERROR_PATH` to the directory or filename to have errors injected upon.  Then set
-`LIBFAULT_ERROR_{READ,WRITE,LSEEK}_ERRNO` to your target's errno to be set on error.
+`LIBFAULT_ERROR_{READ,WRITE,LSEEK}_ERRNO` to your target's errno to be set on each time the corresponding
+operation is executed with a file descriptor that came from `LIBFAULTINJ_ERROR_PATH`.
+
+The path described by `LIBFAULTINJ_ERROR_PATH` is effectively recursive into its subdirectories.
 
     $ LD_PRELOAD=libfaultinj.so \
       LIBFAULTINJ_ERROR_PATH=./testing_dir/ \
@@ -28,10 +31,25 @@ First, set `LIBFAULTINJ_ERROR_PATH` to the directory or filename to have errors 
     cat: ./testing_dir/foo.txt: Cannot allocate memory
 
     $ LD_PRELOAD=libfaultinj.so \
-      LIBFAULTINJ_ERROR_PATH=./testing_dir/a/b/c/ \
+      LIBFAULTINJ_ERROR_PATH=./testing_dir/ \
       LIBFAULTINJ_ERROR_READ_ERRNO=12 \
       cat ./testing_dir/a/b/c/foo.txt
     cat: ./testing_dir/a/b/c/foo.txt: Cannot allocate memory
+
+#### Fuzzy
+Occasional errors can be simulated by using the `LIBFAULTINJ_ERROR_LIKELIHOOD_PCT` environment
+variable.  If not set or set to a number that cannot be parsed, the "likelihood" is "certain."
+
+If you want to simulate infrequent failures in some operations, you can set the likelihood to
+a small value.
+
+TODO: a better example showing a ratio
+
+    $ LD_PRELOAD=libfaultinj.so \
+      LIBFAULTINJ_ERROR_LIKELIHOOD_PCT=0.3 \
+      LIBFAULTINJ_ERROR_PATH=./testing_dir/ \
+      LIBFAULTINJ_ERROR_READ_ERRNO=12 \
+      cat ./testing_dir/foo.txt
 
 ### Inject Delays
 First, set `LIBFAULTINJ_DELAY_PATH` to the directory or filename to be delayed.  Then set
