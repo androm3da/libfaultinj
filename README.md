@@ -27,6 +27,12 @@ First, set `LIBFAULTINJ_ERROR_PATH` to the directory or filename to have errors 
       cat ./testing_dir/foo.txt
     cat: ./testing_dir/foo.txt: Cannot allocate memory
 
+    $ LD_PRELOAD=libfaultinj.so \
+      LIBFAULTINJ_ERROR_PATH=./testing_dir/a/b/c/ \
+      LIBFAULTINJ_ERROR_READ_ERRNO=12 \
+      cat ./testing_dir/a/b/c/foo.txt
+    cat: ./testing_dir/a/b/c/foo.txt: Cannot allocate memory
+
 ### Inject Delays
 First, set `LIBFAULTINJ_DELAY_PATH` to the directory or filename to be delayed.  Then set
 `LIBFAULT_DELAY_{READ,WRITE,LSEEK}_MS` to the decimal representation of the number of

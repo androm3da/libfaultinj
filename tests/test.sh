@@ -29,7 +29,19 @@ LIBFAULTINJ_ERROR_PATH=Cargo.toml \
 LIBFAULTINJ_ERROR_PATH=Cargo.toml \
     LIBFAULTINJ_ERROR_READ_ERRNO=12 cat Cargo.toml > /dev/null 2>&1  ; [ $? -eq 1 ] || error_handler $LINENO
 
-LIBFAULTINJ_ERROR_PATH=./discard \
-    LIBFAULTINJ_ERROR_WRITE_ERRNO=1 dd if=/dev/zero of=./discard count=1 > /dev/null 2>&1  ; [ $? -eq 1 ] || error_handler $LINENO
+LIBFAULTINJ_ERROR_PATH=tests/discard \
+    LIBFAULTINJ_ERROR_WRITE_ERRNO=1 dd if=/dev/zero of=tests/discard count=1 > /dev/null 2>&1  ; [ $? -eq 1 ] || error_handler $LINENO
+
+DEEP_DIR=tests/foo/a/b/c/
+mkdir -p ${DEEP_DIR}
+LIBFAULTINJ_ERROR_PATH=tests/ \
+    LIBFAULTINJ_ERROR_WRITE_ERRNO=1 dd if=/dev/zero of=${DEEP_DIR}/discard count=1 > /dev/null 2>&1  ; [ $? -eq 1 ] || error_handler $LINENO
+
+# Seems to do seek even w/o seek=1
+# This test doesn't pass, not clear why -- we successfully intercept 
+#    the input file's lseek() but maybe not the output one, or 
+#    possibly not tracking the fd correctly through the dupX().
+#LIBFAULTINJ_ERROR_PATH=tests/ \
+#   LIBFAULTINJ_ERROR_LSEEK_ERRNO=1 dd if=/dev/zero of=tests/discard count=1 seek=1 > /dev/null 2>&1  ; [ $? -eq 1 ] || error_handler $LINENO
 
 exit 0

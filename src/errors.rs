@@ -57,6 +57,7 @@ pub type MmapFunc = extern "C" fn(addr: *mut c_void, length_: size_t, prot: c_in
 pub type CloseFunc = extern "C" fn(fd: c_int) -> c_int;
 pub type SeekFunc = extern "C" fn(c_int, off_t, c_int) -> off_t;
 pub type Dup2Func = extern "C" fn(c_int, c_int) -> c_int;
+pub type Dup3Func = extern "C" fn(c_int, c_int, c_int) -> c_int;
 
 macro_rules! get_delay_amount_ms(
         ($funcname: expr) =>
