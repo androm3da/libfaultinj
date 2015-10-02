@@ -263,5 +263,8 @@ mod test {
 
         let bard_x_path = bard_path.join("x");
         assert!(!matchesPath!(bard_x_path, "LIBFAULTINJ_ERROR_PATH"));
+
+        env::set_var("LIBFAULTINJ_ERROR_PATH", bard_x_path.to_str().unwrap());
+        assert!(matchesPath!(bard_x_path, "LIBFAULTINJ_ERROR_PATH"));
     }
 }
