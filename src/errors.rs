@@ -61,11 +61,13 @@ pub type Dup2Func = extern "C" fn(c_int, c_int) -> c_int;
 macro_rules! get_delay_amount_ms(
         ($funcname: expr) =>
     ({
+        use std::env;
+
         const DEFAULT_DELAY_AMOUNT_MS: u32 = 200;
         let err_prefix = "LIBFAULTINJ_DELAY_".to_string();
         let env_name = err_prefix + &String::from($funcname).to_uppercase() + "_MS";
 
-        match std::env::var(env_name) {
+        match env::var(env_name) {
             Ok(p) => match p.parse::<u32>() {
                 Ok(i) => i,
                 Err(_) => DEFAULT_DELAY_AMOUNT_MS,
@@ -80,11 +82,12 @@ macro_rules! checkErrno(
     ({
         use errno::Errno;
         use std::string::String;
+        use std::env;
 
         let err_prefix = "LIBFAULTINJ_ERROR_".to_string();
         let env_name = err_prefix + &String::from($funcname).to_uppercase() + "_ERRNO";
 
-        match std::env::var(env_name) {
+        match env::var(env_name) {
             Ok(p) => match p.parse::<i32>() {
                 Ok(i) => Some(Errno(i)),
                 Err(_) => None,
@@ -150,8 +153,9 @@ macro_rules! matchesPath(
     (
     {
         use std::path::Path;
+        use std::env;
 
-        match std::env::var($env_name) {
+        match env::var($env_name) {
             Ok(p) => {
                 let filename_path = Path::new(&$filename);
                 let delay_path_match = (filename_path.relative_from(Path::new(&p))) != None;
@@ -212,4 +216,52 @@ pub fn add_fd_if_old_present(oldfd: c_int, newfd: c_int) {
         delay_fds.insert(newfd);
     }
 
+}
+
+#[cfg(test)]
+mod test {
+    use std::env;
+    use std::path::Path;
+
+    #[test]
+    fn test_delay() {
+        
+        assert_eq!(get_delay_amount_ms!("open"), 200);
+
+        assert_eq!(get_delay_amount_ms!("read"), 200);
+
+        env::set_var("LIBFAULTINJ_DELAY_READ_MS", "99bogus");
+        assert_eq!(get_delay_amount_ms!("read"), 200);
+
+        env::set_var("LIBFAULTINJ_DELAY_READ_MS", "99");
+        assert_eq!(get_delay_amount_ms!("read"), 99);
+    }
+
+    #[test]
+    fn test_path() {
+        let base = ".";
+        let base_path = Path::new(&base);
+        assert!(!matchesPath!(base, "LIBFAULTINJ_ERROR_PATH"));
+
+        env::set_var("LIBFAULTINJ_ERROR_PATH", ".");
+        assert!(matchesPath!(base, "LIBFAULTINJ_ERROR_PATH"));
+
+        let foo_path = base_path.join("foo");
+        assert!(matchesPath!(foo_path, "LIBFAULTINJ_ERROR_PATH"));
+
+
+        let bar_path = base_path.join("bar");
+        env::set_var("LIBFAULTINJ_ERROR_PATH", bar_path.to_str().unwrap());
+
+        assert!(!matchesPath!(foo_path, "LIBFAULTINJ_ERROR_PATH"));
+
+        let bar_x_path = bar_path.join("x");
+        assert!(matchesPath!(bar_x_path, "LIBFAULTINJ_ERROR_PATH"));
+
+        let bard_path = base_path.join("bard");
+        assert!(!matchesPath!(bard_path, "LIBFAULTINJ_ERROR_PATH"));
+
+        let bard_x_path = bard_path.join("x");
+        assert!(!matchesPath!(bard_x_path, "LIBFAULTINJ_ERROR_PATH"));
+    }
 }
