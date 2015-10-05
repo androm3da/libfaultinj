@@ -46,7 +46,7 @@ macro_rules! get_libc_func(
 
 
 
-pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t,mode_t};
+pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t};
 pub use libc::types::os::arch::posix88::ssize_t;
 
 pub type OpenFunc = extern "C" fn(* const c_char, c_int, mode_t) -> c_int;
@@ -107,7 +107,7 @@ macro_rules! returnError(
         use errno::set_errno;
 
         const LIKELIHOOD_CERTAIN_PCT: f32 = 100f32;
-        
+
         if ERR_FDS.read().unwrap().contains(&$fd) {
             let err_thresh = match std::env::var("LIBFAULTINJ_ERROR_LIKELIHOOD_PCT") {
                 Ok(p) => match p.parse::<f32>() {
@@ -147,7 +147,7 @@ macro_rules! injectFaults(
         }));
 
 /**
- * @return true if $filename is located within the path specified by 
+ * @return true if $filename is located within the path specified by
  *      std::env::var($env_name), false otherwise.
  */
 macro_rules! matchesPath(
@@ -227,7 +227,7 @@ mod test {
 
     #[test]
     fn test_delay() {
-        
+
         assert_eq!(get_delay_amount_ms!("open"), 200);
 
         assert_eq!(get_delay_amount_ms!("read"), 200);

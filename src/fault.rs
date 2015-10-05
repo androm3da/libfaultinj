@@ -8,17 +8,16 @@ extern crate rand;
 extern crate lazy_static;
 
 
-pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, };
+pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t};
 pub use libc::types::os::arch::posix88::ssize_t;
 
 #[macro_use]
 mod errors;
-use errors::{OpenFunc,ReadFunc,WriteFunc,SeekFunc,CloseFunc,
-             MmapFunc,Dup2Func,Dup3Func,IoctlFunc,
-             ERR_FDS,DELAY_FDS,};
-use errors::{remove_fd_if_present,add_fd_if_old_present,};
+use errors::{OpenFunc, ReadFunc, WriteFunc, SeekFunc, CloseFunc, MmapFunc, Dup2Func, Dup3Func,
+             IoctlFunc, ERR_FDS, DELAY_FDS};
+use errors::{remove_fd_if_present, add_fd_if_old_present};
 
-// These functions are designed to conform to their 
+// These functions are designed to conform to their
 //  libc counterparts, but may instead inject errors
 //  depending on conditions defined in various environment
 //  variables.
@@ -36,9 +35,7 @@ pub extern "C" fn open(filename_: *const c_char, flags: c_int, mode: mode_t) -> 
 
 #[no_mangle]
 pub extern "C" fn creat(filename_: *const c_char, mode: mode_t) -> c_int {
-    const FLAGS: c_int = libc::O_CREAT
-                        |libc::O_WRONLY
-                        |libc::O_TRUNC; // TODO: manpage says this is equivalent but 
+    const FLAGS: c_int = libc::O_CREAT | libc::O_WRONLY | libc::O_TRUNC; // TODO: manpage says this is equivalent but
                                         //       should we just call creat() instead?
     do_open!(filename_, FLAGS, mode)
 }
@@ -122,7 +119,7 @@ pub extern "C" fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int {
 #[allow(private_no_mangle_fns)]
 #[allow(dead_code)]
 #[allow(unused_variables)]
-/* pub */ extern "C" fn lseek64(fd: c_int, offset: off_t, whence: c_int) -> off_t {
+/* pub */extern "C" fn lseek64(fd: c_int, offset: off_t, whence: c_int) -> off_t {
     /* TODO -- create a macro to abstract seek/seek64?  define a off64_t type? */
     -1 as off_t
 }
@@ -133,8 +130,13 @@ pub extern "C" fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int {
 #[no_mangle]
 #[allow(private_no_mangle_fns)]
 #[allow(dead_code)]
-/* pub */ extern "C" fn mmap(addr: *mut c_void, length_: size_t, prot: c_int,
-                                 flags: c_int, fd: c_int, offset: off_t) -> *mut c_void {
+/* pub */extern "C" fn mmap(addr: *mut c_void,
+                   length_: size_t,
+                   prot: c_int,
+                   flags: c_int,
+                   fd: c_int,
+                   offset: off_t)
+                   -> *mut c_void {
     let mmap_func = get_libc_func!(MmapFunc, "mmap");
 
     injectFaults!(fd, "mmap", libc::MAP_FAILED);
@@ -147,7 +149,7 @@ pub extern "C" fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int {
 #[no_mangle]
 #[allow(private_no_mangle_fns)]
 #[allow(dead_code)]
-/* pub */ extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: * mut c_char) -> c_int {
+/* pub */extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
     let ioctl_func = get_libc_func!(IoctlFunc, "ioctl");
 
     injectFaults!(fd, "ioctl", -1 as c_int);
