@@ -35,10 +35,12 @@ pub extern "C" fn open(filename_: *const c_char, flags: c_int, mode: mode_t) -> 
 
 #[no_mangle]
 pub extern "C" fn creat(filename_: *const c_char, mode: mode_t) -> c_int {
-    const FLAGS: c_int = libc::O_CREAT 
-                        | libc::O_WRONLY
-                        | libc::O_TRUNC; // TODO: manpage says this is equivalent but
-                                         //       should we just call creat() instead?
+    const FLAGS: c_int = libc::O_CREAT
+                       | libc::O_WRONLY
+                       | libc::O_TRUNC; 
+
+    // TODO: manpage says this is equivalent to creat() but
+    //       should we just call creat() instead?
     do_open!(filename_, FLAGS, mode)
 }
 

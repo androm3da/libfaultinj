@@ -14,7 +14,7 @@ lazy_static! {
                                                 = RwLock::new(Default::default());
     pub static ref ERR_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>>
                                                 = RwLock::new(Default::default());
-    //static ref LIBC: RwLock<DynamicLibrary> 
+    //static ref LIBC: RwLock<DynamicLibrary>
         // = RwLock::new(DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))).unwrap());
 }
 
