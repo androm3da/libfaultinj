@@ -101,7 +101,7 @@ macro_rules! checkErrno(
 
 
 macro_rules! returnError(
-        ($fd: expr, $funcname:expr, $err:expr) =>
+        ($fd: expr, $funcname:expr, $ret_err:expr) =>
     ({
         use rand::Rng;
         use errno::set_errno;
@@ -122,9 +122,9 @@ macro_rules! returnError(
             if  rand_val < (err_thresh) {
                 let errno = checkErrno!($funcname);
 
-                if errno.is_some() {
-                    set_errno(errno.unwrap());
-                    return $err;
+                if let Some(err) = errno {
+                    set_errno(err);
+                    return $ret_err;
                 }
 
             };

@@ -57,29 +57,74 @@ pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
 
 #[no_mangle]
 pub extern "C" fn lseek(fd: c_int, offset: off_t, whence: c_int) -> off_t {
-    let seek_func = get_libc_func!(SeekFunc, "lseek");
+    lazy_static! {
+        static ref SEEK_FUNC: SeekFunc = get_libc_func!(SeekFunc, "lseek");
+    }
 
     injectFaults!(fd, "lseek", -1 as i64);
 
-    seek_func(fd, offset, whence)
+    SEEK_FUNC(fd, offset, whence)
 }
+
+#[no_mangle]
+pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
+    lazy_static! {
+        static ref WRITE_FUNC: WriteFunc = get_libc_func!(WriteFunc, "write");
+    }
+
+    injectFaults!(fd, "write", SSIZE_ERR);
+
+    WRITE_FUNC(fd, buf, nbytes)
+}
+
+
+#[no_mangle]
+pub extern "C" fn close(fd: c_int) -> c_int {
+    lazy_static! {
+        static ref CLOSE_FUNC: CloseFunc = get_libc_func!(CloseFunc, "close");
+    }
+
+    remove_fd_if_present(fd);
+
+    CLOSE_FUNC(fd)
+}
+
+// For now we don't intercept this call for error injection,
+//   only for fd tracking.
+#[no_mangle]
+pub extern "C" fn dup2(oldfd: c_int, newfd: c_int) -> c_int {
+    lazy_static! {
+        static ref DUP2_FUNC: Dup2Func = get_libc_func!(Dup2Func, "dup2");
+    }
+
+    add_fd_if_old_present(oldfd, newfd);
+
+    DUP2_FUNC(oldfd, newfd)
+}
+
+// For now we don't intercept this call for error injection,
+//   only for fd tracking.
+#[no_mangle]
+pub extern "C" fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int {
+    lazy_static! {
+        static ref DUP3_FUNC: Dup3Func = get_libc_func!(Dup3Func, "dup3");
+    }
+
+    add_fd_if_old_present(oldfd, newfd);
+
+    DUP3_FUNC(oldfd, newfd, flags)
+}
+
+
+// DISABLED -- these calls are disabled until problems caused can be addressed
 
 #[no_mangle]
 #[allow(private_no_mangle_fns)]
 #[allow(dead_code)]
 #[allow(unused_variables)]
 /* pub */ extern "C" fn lseek64(fd: c_int, offset: off_t, whence: c_int) -> off_t {
-    /* TODO -- impl necessary?  define a off64_t type? */
+    /* TODO -- create a macro to abstract seek/seek64?  define a off64_t type? */
     -1 as off_t
-}
-
-#[no_mangle]
-pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
-    let write_func = get_libc_func!(WriteFunc, "write");
-
-    injectFaults!(fd, "write", SSIZE_ERR);
-
-    write_func(fd, buf, nbytes)
 }
 
 // mmap() interception is disabled for now.  deadlocks on
@@ -96,40 +141,6 @@ pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
 
     mmap_func(addr, length_, prot, flags, fd, offset)
 }
-
-#[no_mangle]
-pub extern "C" fn close(fd: c_int) -> c_int {
-    let close_func = get_libc_func!(CloseFunc, "close");
-
-    let ret: c_int = close_func(fd);
-
-    remove_fd_if_present(fd);
-
-    ret
-}
-
-// For now we don't intercept this call for error injection,
-//   only for fd tracking.
-#[no_mangle]
-pub extern "C" fn dup2(oldfd: c_int, newfd: c_int) -> c_int {
-    let dup2_func = get_libc_func!(Dup2Func, "dup2");
-
-    add_fd_if_old_present(oldfd, newfd);
-
-    dup2_func(oldfd, newfd)
-}
-
-// For now we don't intercept this call for error injection,
-//   only for fd tracking.
-#[no_mangle]
-pub extern "C" fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int {
-    let dup3_func = get_libc_func!(Dup3Func, "dup3");
-
-    add_fd_if_old_present(oldfd, newfd);
-
-    dup3_func(oldfd, newfd, flags)
-}
-
 
 // Disabled for now, causes errors when tested w/
 //   hwclock.
