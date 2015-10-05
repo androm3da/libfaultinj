@@ -44,4 +44,10 @@ LIBFAULTINJ_ERROR_PATH=tests/ \
 #LIBFAULTINJ_ERROR_PATH=tests/ \
 #   LIBFAULTINJ_ERROR_LSEEK_ERRNO=1 dd if=/dev/zero of=tests/discard count=1 seek=1 > /dev/null 2>&1  ; [ $? -eq 1 ] || error_handler $LINENO
 
+
+# TODO: We need an injection test for ioctl(). So far, no simple shell 
+#     commands spring to mind.  hwclock requires superuser to access /dev/rtc
+#     and tty control (reset, stty) interact with STD{IN,OUT}_FILENO that skips
+#     our open() hook.
+
 exit 0
