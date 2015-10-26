@@ -14,7 +14,7 @@ pub use libc::types::os::arch::posix88::ssize_t;
 #[macro_use]
 mod errors;
 use errors::{OpenFunc, ReadFunc, WriteFunc, SeekFunc, CloseFunc, MmapFunc, Dup2Func, Dup3Func,
-             IoctlFunc, ERR_FDS, DELAY_FDS};
+             IoctlFunc, ERR_FDS, DELAY_FDS, };
 use errors::{remove_fd_if_present, add_fd_if_old_present};
 
 // These functions are designed to conform to their
@@ -141,12 +141,10 @@ pub extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
 // mmap() interception is disabled for now.  deadlocks on
 //   malloc_init_hard()->mmap()->DynamicLibrary::open()->malloc_init_hard(), at least
 //   on systems w/jemalloc.
-//   TODO: Would it break the deadlock if we did the dlopen in its 
-//      own lazy_static and passed that in?
 #[no_mangle]
 #[allow(private_no_mangle_fns)]
 #[allow(dead_code)]
-/* pub */ extern "C" fn mmap(addr: *mut c_void,
+/* pub */extern "C" fn mmap(addr: *mut c_void,
                    length_: size_t,
                    prot: c_int,
                    flags: c_int,
@@ -161,4 +159,3 @@ pub extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
 
     MMAP_FUNC(addr, length_, prot, flags, fd, offset)
 }
-

@@ -2,6 +2,8 @@
 
 //use std::dynamic_lib::DynamicLibrary;
 //const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
+//  These wrappers might be effective, but they're not
+//  permitted:
 //unsafe impl Sync for DynamicLibrary { }
 //unsafe impl Send for DynamicLibrary { }
 
@@ -100,27 +102,19 @@ macro_rules! checkErrno(
     })
 );
 
+pub static LIKELIHOOD_CERTAIN_PCT: f32 = 100f32;
 
 macro_rules! returnError(
         ($fd: expr, $funcname:expr, $ret_err:expr) =>
     ({
-        use rand::Rng;
         use errno::set_errno;
-
-        const LIKELIHOOD_CERTAIN_PCT: f32 = 100f32;
+        use errors::get_rand_likelihood;
+        use errors::get_item_likelihood;
 
         if ERR_FDS.read().unwrap().contains(&$fd) {
-            let err_thresh = match std::env::var("LIBFAULTINJ_ERROR_LIKELIHOOD_PCT") {
-                Ok(p) => match p.parse::<f32>() {
-                    Ok(i) => i,
-                    Err(_) => LIKELIHOOD_CERTAIN_PCT,
-                },
-                Err(_) => LIKELIHOOD_CERTAIN_PCT,
-            };
-            let mut rng = rand::thread_rng();
-            let rand_val = rng.gen_range::<f32>(0., LIKELIHOOD_CERTAIN_PCT);
+            let err_thresh = get_item_likelihood("LIBFAULTINJ_ERROR_LIKELIHOOD_PCT");
 
-            if  rand_val < (err_thresh) {
+            if  get_rand_likelihood() < (err_thresh) {
                 let errno = checkErrno!($funcname);
 
                 if let Some(err) = errno {
@@ -133,14 +127,39 @@ macro_rules! returnError(
     })
 );
 
+pub fn get_item_likelihood(env_var: &'static str) -> f32 {
+    use std::env;
+    use errors::LIKELIHOOD_CERTAIN_PCT;
+
+    match env::var(env_var) {
+        Ok(p) => match p.parse::<f32>() {
+            Ok(i) => i,
+            Err(_) => LIKELIHOOD_CERTAIN_PCT,
+        },
+        Err(_) => LIKELIHOOD_CERTAIN_PCT,
+    }
+}
+
+pub fn get_rand_likelihood() -> f32 {
+    use rand;
+    use rand::Rng;
+    use errors::LIKELIHOOD_CERTAIN_PCT;
+
+    let mut rng = rand::thread_rng();
+    rng.gen_range::<f32>(0., LIKELIHOOD_CERTAIN_PCT)
+}
+
 macro_rules! injectFaults(
         ($fd: expr, $funcname:expr, $err:expr) =>
         ({
             use std::thread;
+            use errors::get_item_likelihood;
+            use errors::get_rand_likelihood;
 
             let delay_match = DELAY_FDS.read().unwrap().contains(&$fd);
+            let delay_likelihood =  get_item_likelihood("LIBFAULTINJ_ERROR_LIKELIHOOD_PCT");
 
-            if delay_match {
+            if delay_match && (get_rand_likelihood() < delay_likelihood) {
                 thread::sleep_ms(get_delay_amount_ms!($funcname));
             }
 
