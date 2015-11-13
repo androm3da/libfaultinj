@@ -49,8 +49,7 @@ macro_rules! get_libc_func(
 
 
 
-pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t};
-pub use libc::types::os::arch::posix88::ssize_t;
+pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
 
 pub type OpenFunc = extern "C" fn(* const c_char, c_int, mode_t) -> c_int;
 pub type ReadFunc = extern "C" fn(fd: c_int, buf: * mut c_void, nbytes: c_int) -> ssize_t;

@@ -8,8 +8,7 @@ extern crate rand;
 extern crate lazy_static;
 
 
-pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t};
-pub use libc::types::os::arch::posix88::ssize_t;
+pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
 
 #[macro_use]
 mod errors;
@@ -42,7 +41,7 @@ pub extern "C" fn creat(filename_: *const c_char, mode: mode_t) -> c_int {
     do_open!(filename_, FLAGS, mode)
 }
 
-const SSIZE_ERR: ssize_t = -1i64;
+const SSIZE_ERR: ssize_t = -1isize;
 
 #[no_mangle]
 pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
