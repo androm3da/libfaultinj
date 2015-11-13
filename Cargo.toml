@@ -6,10 +6,10 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-libc = "*"
-lazy_static = "*"
-errno = "*"
-rand = "*"
+libc = "0.2"
+lazy_static = "0.1"
+errno = "0.1"
+rand = "0.3"
 
 [lib]
 name="faultinj"
