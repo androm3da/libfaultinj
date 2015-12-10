@@ -49,7 +49,6 @@ quite a bit of functionality.
 * `ioctl`
 * `lseek`
 * `write`
-* `open`
 * `dup3`
 
 ### Inject Errors
