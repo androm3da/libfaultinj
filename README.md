@@ -1,4 +1,5 @@
 
+# Fault Injection
 
 `libfaultinj` is a fault-injection library.  In the context in which your
 software executes, there's some physical device that ultimately carries
@@ -30,11 +31,26 @@ Use `LD_PRELOAD` to load `libfaultinj` in front of your platform's C library.  I
 conditionally execute a delay before executing the operation or return an error instead
 of executing the operation.
 
-This library is supported on linux, at least `x86_64` and ARM.
+This library is supported on linux, at least `x86_64` and ARM.  Note that
+building it requires nightly, and there's a good chance that may stay that
+way for some time.  It critically depends on `dynamic_lib`, and less so
+some others.
 
 TODO: testing w/`DYLD_INSERT_LIBRARIES` on OS X or other similar platforms.
 
 ## Usage
+
+### Supported intercept functions
+An initial set of calls are below.  Others may be considered, but these cover
+quite a bit of functionality.
+
+* `open`
+* `read`
+* `ioctl`
+* `lseek`
+* `write`
+* `open`
+* `dup3`
 
 ### Inject Errors
 First, set `LIBFAULTINJ_ERROR_PATH` to the directory or filename to have errors injected upon.  Then set
