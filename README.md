@@ -1,13 +1,32 @@
 
 
-`libfaultinj` is a fault-injection library.
+`libfaultinj` is a fault-injection library.  In the context in which your
+software executes, there's some physical device that ultimately carries
+out the tasks (ICs, disks, network cables).  These things are typically reliable
+enough that finding one to malfunction can be difficult.  Getting one to
+malfunction on demand for a regression test is often impossible.  So how can
+you test whether your code is robust in the face of a stalled network
+connection or disk media error?  
+
+`libfaultinj` provides a facility that  intercepts the functions that drive
+ much of an application's activity.  Regardless of whether you're using Java,
+ Python, ruby, C, C++ -- nearly all calls to the system will go through the
+ system's C library.  Many of them will involve functions like `open()`,
+ `read()`, `write()` and `close()`.  Misbehavior here is all that it takes to
+ make a good device seem bad.
+
+ By leveraging `libfaultinj` in your test suite, you can define what the
+ acceptable results are for these oddities.  If the file write takes longer
+ than you expect, your application should probably return a `5xx` HTTP status
+ code, or throw an exception, or whatever's appropriate.  But it probably
+ shouldn't flip out and `SIGBUS` or queue thousands of retries.
 
 [![Build Status](https://travis-ci.org/androm3da/libfaultinj.svg?branch=master)](https://travis-ci.org/androm3da/libfaultinj)
 
 
 ## Concept
 
-Use `LD_PRELOAD` to load `libfaultinj` in front of your platform's C library.  It will 
+Use `LD_PRELOAD` to load `libfaultinj` in front of your platform's C library.  It will
 conditionally execute a delay before executing the operation or return an error instead
 of executing the operation.
 
