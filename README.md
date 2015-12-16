@@ -48,8 +48,8 @@ specific expected results.
 generic results ("didn't crash", e.g.)
 
 ## High level examples
-* [Python](#Python_example)
-* [Ruby](#Ruby_example)
+* [Python](#python-example)
+* [Ruby](#ruby-example)
 
 ### Supported intercept functions
 An initial set of calls are below.  Others may be considered, but these cover
