@@ -40,6 +40,17 @@ TODO: testing w/`DYLD_INSERT_LIBRARIES` on OS X or other similar platforms.
 
 ## Usage
 
+### Overview
+There's two primary use cases that `libfaultinj` works well in:
+1. Unit tests, injecting specific narrow faults and asserting
+specific expected results.
+2. System/integration tests, injecting fuzzy faults and asserting high-level
+generic results ("didn't crash", e.g.)
+
+## High level examples
+* [Python](#Python_example)
+* [Ruby](#Ruby_example)
+
 ### Supported intercept functions
 An initial set of calls are below.  Others may be considered, but these cover
 quite a bit of functionality.
@@ -108,3 +119,28 @@ The `cat` command completes faster than the smallest precision shown by `time` -
     0inputs+0outputs (0major+141minor)pagefaults 0swaps
 
 ...it shows 0:10.00elapsed.
+
+
+### Python example
+
+Using the `unittest` module, you can make a simple example of fault injection with Python like the example below:
+
+    filename = './thisfile.txt'
+    os.environ['LIBFAULTINJ_ERROR_PATH'] = filename
+    os.environ['LIBFAULTINJ_ERROR_OPEN_ERRNO'] = str(errno.ENOMEM)
+
+    with self.assertRaises(IOFailure):
+        with open(filename, 'rt') as f:
+            f.read()
+
+Note that this test will only pass if it's executed like "`LD_PRELOAD=libfaultinj.so python ...`"
+
+### Ruby example
+
+Here's the corresponding example using ruby:
+
+    FileUtils.touch(@@file_name)
+    ENV['LIBFAULTINJ_ERROR_PATH'] = @@file_name
+    ENV['LIBFAULTINJ_ERROR_OPEN_ERRNO'] = '2'
+
+    assert_raise( Errno::ENOENT ) { x = File.read(@@file_name) }
