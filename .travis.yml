@@ -1,9 +1,10 @@
 language: rust
 rust:
  - nightly
-python:
-  - "3.5"
-sudo: false
+
+before_install:
+- sudo apt-get update
+- sudo apt-get install python3
 script:
   - cargo build
   - cargo test
