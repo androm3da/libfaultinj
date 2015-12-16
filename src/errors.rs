@@ -66,17 +66,18 @@ macro_rules! get_delay_amount_ms(
         ($funcname: expr) =>
     ({
         use std::env;
+        use std::time::Duration;
 
-        const DEFAULT_DELAY_AMOUNT_MS: u32 = 200;
+        let default_delay_amount : Duration = Duration::from_millis(200);;
         let err_prefix = "LIBFAULTINJ_DELAY_".to_string();
         let env_name = err_prefix + &String::from($funcname).to_uppercase() + "_MS";
 
         match env::var(env_name) {
-            Ok(p) => match p.parse::<u32>() {
-                Ok(i) => i,
-                Err(_) => DEFAULT_DELAY_AMOUNT_MS,
+            Ok(p) => match p.parse::<u64>() {
+                Ok(i) => Duration::from_millis(i),
+                Err(_) => default_delay_amount,
             },
-            Err(_) => DEFAULT_DELAY_AMOUNT_MS,
+            Err(_) => default_delay_amount,
         }
     })
 );
@@ -151,7 +152,7 @@ pub fn get_rand_likelihood() -> f32 {
 macro_rules! injectFaults(
         ($fd: expr, $funcname:expr, $err:expr) =>
         ({
-            use std::thread;
+            use std::thread::sleep;
             use errors::get_item_likelihood;
             use errors::get_rand_likelihood;
 
@@ -159,7 +160,7 @@ macro_rules! injectFaults(
             let delay_likelihood =  get_item_likelihood("LIBFAULTINJ_ERROR_LIKELIHOOD_PCT");
 
             if delay_match && (get_rand_likelihood() < delay_likelihood) {
-                thread::sleep_ms(get_delay_amount_ms!($funcname));
+                sleep(get_delay_amount_ms!($funcname));
             }
 
             returnError!($fd, $funcname, $err);
@@ -246,16 +247,17 @@ mod test {
 
     #[test]
     fn test_delay() {
+        use std::time::Duration;
 
-        assert_eq!(get_delay_amount_ms!("open"), 200);
+        assert_eq!(get_delay_amount_ms!("open"), Duration::from_millis(200));
 
-        assert_eq!(get_delay_amount_ms!("read"), 200);
+        assert_eq!(get_delay_amount_ms!("read"), Duration::from_millis(200));
 
         env::set_var("LIBFAULTINJ_DELAY_READ_MS", "99bogus");
-        assert_eq!(get_delay_amount_ms!("read"), 200);
+        assert_eq!(get_delay_amount_ms!("read"), Duration::from_millis(200));
 
         env::set_var("LIBFAULTINJ_DELAY_READ_MS", "99");
-        assert_eq!(get_delay_amount_ms!("read"), 99);
+        assert_eq!(get_delay_amount_ms!("read"), Duration::from_millis(99));
     }
 
     #[test]
