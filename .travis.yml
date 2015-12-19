@@ -9,3 +9,7 @@ script:
   - cargo build
   - cargo test
   - cd examples/ ; make
+
+branches:
+  only:
+      - master
