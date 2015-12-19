@@ -11,13 +11,15 @@ use std::sync::RwLock;
 use std::hash::{Hasher, SipHasher};
 use std::collections::hash_set::HashSet;
 use std::collections::hash_state::DefaultState;
+
+//const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
+
 lazy_static! {
     pub static ref DELAY_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>>
                                                 = RwLock::new(Default::default());
     pub static ref ERR_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>>
                                                 = RwLock::new(Default::default());
-    //static ref LIBC: RwLock<DynamicLibrary>
-        // = RwLock::new(DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))).unwrap());
+//    pub static ref LIBC: RwLock<Library> = RwLock::new(Library::new("libc.so.6").unwrap());
 }
 
 
@@ -25,28 +27,26 @@ macro_rules! get_libc_func(
     ($destination_t:ty, $funcname:expr) =>
         (
             {
-                use std::dynamic_lib::DynamicLibrary;
                 use std::mem::transmute;
                 use std::path::Path;
-
-                const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
+                use libloading::{Library, Symbol};
+                use std::sync::RwLock;
 
                 unsafe {
-                    let libc_dl = match DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))) {
-                        Ok(libc) => libc,
-                        Err(error) => panic!("Couldn't open libc: '{}'", error),
-                    };
+                    let libc = Library::new("libc.so.6").unwrap();
 
-                    match libc_dl.symbol::<c_void>($funcname) {
-                        Ok(open_func) => transmute::<* mut c_void, $destination_t>(open_func),
-                        Err(error) => panic!("Couldn't find '{}': '{}'", $funcname, error),
+                    let funcname = $funcname.as_bytes();
+                    let function : Symbol<$destination_t> = libc.get::<$destination_t>(funcname)
+                                    .unwrap();
+                    // Err(error) => panic!("Couldn't find '{}': '{}'", $funcname, error),
+                    let locked_func : RwLock<Symbol<$destination_t>> = RwLock::new(function);
+
+
+                    function.deref()
                 }
             }
-        })
+        )
 );
-
-
-
 
 
 pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
@@ -195,7 +195,7 @@ macro_rules! do_open(
         let filename: String = unsafe {
             std::ffi::CStr::from_ptr($filename_).to_string_lossy().into_owned()
         };
-        let open_func = get_libc_func!(OpenFunc, "open");
+        let open_func : OpenFunc = get_libc_func!(OpenFunc, "open");
         let fd: c_int = open_func($filename_, $flags, $mode);
 
         if matchesPath!(filename, "LIBFAULTINJ_ERROR_PATH") {

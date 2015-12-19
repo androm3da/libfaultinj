@@ -3,6 +3,8 @@
 extern crate libc;
 extern crate errno;
 extern crate rand;
+extern crate libloading;
+
 
 #[macro_use]
 extern crate lazy_static;
@@ -13,8 +15,9 @@ pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
 #[macro_use]
 mod errors;
 use errors::{OpenFunc, ReadFunc, WriteFunc, SeekFunc, CloseFunc, MmapFunc, Dup2Func, Dup3Func,
-             IoctlFunc, ERR_FDS, DELAY_FDS, };
+             IoctlFunc, ERR_FDS, DELAY_FDS,  };
 use errors::{remove_fd_if_present, add_fd_if_old_present};
+use libloading::Symbol;
 
 // These functions are designed to conform to their
 //  libc counterparts, but may instead inject errors
@@ -46,7 +49,7 @@ const SSIZE_ERR: ssize_t = -1isize;
 #[no_mangle]
 pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
     lazy_static! {
-        static ref READ_FUNC: ReadFunc = get_libc_func!(ReadFunc, "read");
+        static ref READ_FUNC: ReadFunc = *get_libc_func!(ReadFunc, "read");
     }
 
     injectFaults!(fd, "read", SSIZE_ERR);
@@ -58,7 +61,7 @@ pub extern "C" fn read(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
 #[no_mangle]
 pub extern "C" fn lseek(fd: c_int, offset: off_t, whence: c_int) -> off_t {
     lazy_static! {
-        static ref SEEK_FUNC: SeekFunc = get_libc_func!(SeekFunc, "lseek");
+        static ref SEEK_FUNC: SeekFunc = *get_libc_func!(SeekFunc, "lseek");
     }
 
     injectFaults!(fd, "lseek", -1 as i64);
@@ -69,7 +72,7 @@ pub extern "C" fn lseek(fd: c_int, offset: off_t, whence: c_int) -> off_t {
 #[no_mangle]
 pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
     lazy_static! {
-        static ref WRITE_FUNC: WriteFunc = get_libc_func!(WriteFunc, "write");
+        static ref WRITE_FUNC: WriteFunc = *get_libc_func!(WriteFunc, "write");
     }
 
     injectFaults!(fd, "write", SSIZE_ERR);
@@ -81,7 +84,7 @@ pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
 #[no_mangle]
 pub extern "C" fn close(fd: c_int) -> c_int {
     lazy_static! {
-        static ref CLOSE_FUNC: CloseFunc = get_libc_func!(CloseFunc, "close");
+        static ref CLOSE_FUNC: CloseFunc = *get_libc_func!(CloseFunc, "close");
     }
 
     remove_fd_if_present(fd);
@@ -94,7 +97,7 @@ pub extern "C" fn close(fd: c_int) -> c_int {
 #[no_mangle]
 pub extern "C" fn dup2(oldfd: c_int, newfd: c_int) -> c_int {
     lazy_static! {
-        static ref DUP2_FUNC: Dup2Func = get_libc_func!(Dup2Func, "dup2");
+        static ref DUP2_FUNC: Dup2Func = *get_libc_func!(Dup2Func, "dup2");
     }
 
     add_fd_if_old_present(oldfd, newfd);
@@ -107,7 +110,7 @@ pub extern "C" fn dup2(oldfd: c_int, newfd: c_int) -> c_int {
 #[no_mangle]
 pub extern "C" fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int {
     lazy_static! {
-        static ref DUP3_FUNC: Dup3Func = get_libc_func!(Dup3Func, "dup3");
+        static ref DUP3_FUNC: Dup3Func = *get_libc_func!(Dup3Func, "dup3");
     }
 
     add_fd_if_old_present(oldfd, newfd);
@@ -118,7 +121,7 @@ pub extern "C" fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int {
 #[no_mangle]
 pub extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
     lazy_static! {
-        static ref IOCTL_FUNC: IoctlFunc = get_libc_func!(IoctlFunc, "ioctl");
+        static ref IOCTL_FUNC: IoctlFunc = *get_libc_func!(IoctlFunc, "ioctl");
     }
 
     injectFaults!(fd, "ioctl", -1 as c_int);
@@ -137,6 +140,8 @@ pub extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
     -1 as off_t
 }
 
+use std::sync::RwLock;
+
 // mmap() interception is disabled for now.  deadlocks on
 //   malloc_init_hard()->mmap()->DynamicLibrary::open()->malloc_init_hard(), at least
 //   on systems w/jemalloc.
@@ -151,7 +156,7 @@ pub extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
                    offset: off_t)
                    -> *mut c_void {
     lazy_static! {
-        static ref MMAP_FUNC: MmapFunc = get_libc_func!(MmapFunc, "mmap");
+        static ref MMAP_FUNC: MmapFunc = *get_libc_func!(MmapFunc, "mmap");
     }
 
     injectFaults!(fd, "mmap", libc::MAP_FAILED);
