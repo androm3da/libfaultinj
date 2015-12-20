@@ -1,8 +1,9 @@
-#![feature(dynamic_lib,path_relative_from,hashmap_hasher)]
+#![feature(path_relative_from,hashmap_hasher)]
 
 extern crate libc;
 extern crate errno;
 extern crate rand;
+extern crate dylib;
 
 #[macro_use]
 extern crate lazy_static;

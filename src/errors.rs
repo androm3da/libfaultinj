@@ -25,7 +25,7 @@ macro_rules! get_libc_func(
     ($destination_t:ty, $funcname:expr) =>
         (
             {
-                use std::dynamic_lib::DynamicLibrary;
+                use dylib::DynamicLibrary;
                 use std::mem::transmute;
                 use std::path::Path;
 
