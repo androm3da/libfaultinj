@@ -49,7 +49,8 @@ macro_rules! get_libc_func(
 
 
 
-pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
+pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t,
+               ssize_t, sockaddr, };
 
 pub type OpenFunc = extern "C" fn(* const c_char, c_int, mode_t) -> c_int;
 pub type ReadFunc = extern "C" fn(fd: c_int, buf: * mut c_void, nbytes: c_int) -> ssize_t;
@@ -61,6 +62,7 @@ pub type IoctlFunc = extern "C" fn(c_int, c_ulong, ...) -> c_int;
 pub type SeekFunc = extern "C" fn(c_int, off_t, c_int) -> off_t;
 pub type Dup2Func = extern "C" fn(c_int, c_int) -> c_int;
 pub type Dup3Func = extern "C" fn(c_int, c_int, c_int) -> c_int;
+pub type BindFunc = extern "C" fn(c_int, * const sockaddr, u8) -> c_int;
 
 macro_rules! get_delay_amount_ms(
         ($funcname: expr) =>
@@ -188,6 +190,21 @@ macro_rules! matchesPath(
             Err(_) => false
         }
     }));
+
+/**
+ * @return true if $addr matches the address specified by
+ *      std::env::var($env_name), false otherwise.
+ */
+macro_rules! matchesAddr(
+            ($addr: expr, $env_name: expr) =>
+        (
+        {
+            false
+        }
+    ));
+
+
+
 
 macro_rules! do_open(
     ($filename_:expr, $flags:expr, $mode:expr) =>

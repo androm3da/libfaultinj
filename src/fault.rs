@@ -14,7 +14,7 @@ pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
 #[macro_use]
 mod errors;
 use errors::{OpenFunc, ReadFunc, WriteFunc, SeekFunc, CloseFunc, MmapFunc, Dup2Func, Dup3Func,
-             IoctlFunc, ERR_FDS, DELAY_FDS, };
+             IoctlFunc, BindFunc, ERR_FDS, DELAY_FDS, };
 use errors::{remove_fd_if_present, add_fd_if_old_present};
 
 // These functions are designed to conform to their
@@ -125,6 +125,24 @@ pub extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
     injectFaults!(fd, "ioctl", -1 as c_int);
 
     IOCTL_FUNC(fd, req, argp)
+}
+
+use libc::sockaddr;
+#[no_mangle]
+pub extern "C" fn bind(sockfd: c_int, addr: * const sockaddr , addrlen: u8) -> c_int {
+    lazy_static! {
+        static ref BIND_FUNC: BindFunc = get_libc_func!(BindFunc, "bind");
+    }
+
+    if matchesAddr!(addr, "LIBFAULTINJ_ERROR_PATH") {
+        ERR_FDS.write().unwrap().insert(sockfd);
+    }
+
+    if matchesAddr!(addr, "LIBFAULTINJ_DELAY_PATH") {
+        DELAY_FDS.write().unwrap().insert(sockfd);
+    }
+
+    BIND_FUNC(sockfd, addr, addrlen)
 }
 
 // DISABLED -- these calls are disabled until problems caused can be addressed
