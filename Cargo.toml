@@ -10,7 +10,7 @@ libc = "0.2"
 lazy_static = "0.1"
 errno = "0.1"
 rand = "0.3"
-dylib = "0.0.2"
+dylib = "0.0"
 
 [lib]
 name="faultinj"
