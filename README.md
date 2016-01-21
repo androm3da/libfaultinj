@@ -40,6 +40,26 @@ TODO: testing w/`DYLD_INSERT_LIBRARIES` on OS X or other similar platforms.
 
 ## Usage
 
+### Building
+
+Get [rust-nightly](https://www.rust-lang.org/downloads.html) or just
+
+    $ curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly
+
+Build the package via `cargo`:
+
+    $ cd libfaultinj
+    $ cargo build --release
+
+Promote the target to a system location:
+
+    $ mkdir -p /opt/libfaultinj/lib
+    $ cp target/release/libfaultinj.so /opt/libfaultinj/lib
+
+Now you can use it via `LD_PRELOAD` per the examples like so:
+
+    $ LD_PRELOAD=/opt/libfaultinj/lib/libfaultinj.so ...
+
 ### Overview
 There's two primary use cases that `libfaultinj` works well in:
 1. Unit tests, injecting specific narrow faults and asserting
