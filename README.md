@@ -62,6 +62,7 @@ Now you can use it via `LD_PRELOAD` per the examples like so:
 
 ### Overview
 There's two primary use cases that `libfaultinj` works well in:
+
 1. Unit tests, injecting specific narrow faults and asserting
 specific expected results.
 2. System/integration tests, injecting fuzzy faults and asserting high-level
@@ -149,7 +150,7 @@ Using the `unittest` module, you can make a simple example of fault injection wi
     os.environ['LIBFAULTINJ_ERROR_PATH'] = filename
     os.environ['LIBFAULTINJ_ERROR_OPEN_ERRNO'] = str(errno.ENOMEM)
 
-    with self.assertRaises(IOFailure):
+    with self.assertRaises(EnvironmentError):
         with open(filename, 'rt') as f:
             f.read()
 
