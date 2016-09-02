@@ -1,5 +1,6 @@
 
 
+
 //use std::dynamic_lib::DynamicLibrary;
 //const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
 //  These wrappers might be effective, but they're not
@@ -8,14 +9,49 @@
 //unsafe impl Send for DynamicLibrary { }
 
 use std::sync::RwLock;
-use std::hash::{Hasher, SipHasher};
+use std::hash::Hasher;
 use std::collections::hash_set::HashSet;
-use std::collections::hash_state::DefaultState;
+use std::hash::BuildHasher;
+
+pub struct SomeHashState {
+    //exists because on older linux systems w/o entropy
+    //   syscall the default hash state will do open()
+    //   which will recurse and deadlock on the RwLock
+    //  resource.
+    hash: u64
+}
+
+impl BuildHasher for SomeHashState {
+    type Hasher = SomeHashState;
+
+    fn build_hasher(&self) -> SomeHashState {
+        SomeHashState::default()
+    }
+}
+impl Default for SomeHashState {
+    #[inline]
+    fn default() -> SomeHashState {
+        SomeHashState{ hash: 0 }
+    }
+}
+impl Hasher for SomeHashState {
+    fn write(&mut self, msg: &[u8]) {
+        for byte in msg {
+            self.hash ^= *byte as u64;
+        }
+    }
+    fn finish(&self) -> u64 {
+        self.hash
+    }
+}
+
+pub type AlternateHashSet = HashSet<c_int, SomeHashState>;
+
 lazy_static! {
-    pub static ref DELAY_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>>
-                                                = RwLock::new(Default::default());
-    pub static ref ERR_FDS: RwLock<HashSet<c_int, DefaultState<SipHasher>>>
-                                                = RwLock::new(Default::default());
+    pub static ref DELAY_FDS: RwLock<AlternateHashSet>
+                                                = RwLock::new(HashSet::with_hasher(SomeHashState::default()));
+    pub static ref ERR_FDS: RwLock<AlternateHashSet>
+                                                = RwLock::new(HashSet::with_hasher(SomeHashState::default()));
     //static ref LIBC: RwLock<DynamicLibrary>
         // = RwLock::new(DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))).unwrap());
 }
@@ -182,7 +218,7 @@ macro_rules! matchesPath(
         match env::var($env_name) {
             Ok(p) => {
                 let filename_path = Path::new(&$filename);
-                let delay_path_match = (filename_path.relative_from(Path::new(&p))) != None;
+                let delay_path_match = filename_path.strip_prefix(Path::new(&p)).is_ok();
                 let filename_match = filename_path == Path::new(&p);
 
                 delay_path_match || filename_match

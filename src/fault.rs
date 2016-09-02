@@ -1,4 +1,3 @@
-#![feature(path_relative_from,hashmap_hasher)]
 
 extern crate libc;
 extern crate errno;
