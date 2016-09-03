@@ -4,8 +4,9 @@ rust:
 
 before_install:
 - sudo apt-get update
-- sudo apt-get install python3
+- sudo apt-get install python3 ruby
 script:
   - cargo build
   - cargo test
+  - gem install test-unit
   - cd examples/ ; make
