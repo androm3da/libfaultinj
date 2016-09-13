@@ -13,7 +13,7 @@ pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
 #[macro_use]
 mod errors;
 use errors::{OpenFunc, ReadFunc, WriteFunc, SeekFunc, CloseFunc, MmapFunc, Dup2Func, Dup3Func,
-             IoctlFunc, BindFunc, ERR_FDS, DELAY_FDS, };
+             IoctlFunc, BindFunc, ERR_FDS, DELAY_FDS};
 use self::errors::matches_addr;
 use errors::{remove_fd_if_present, add_fd_if_old_present};
 
@@ -129,7 +129,7 @@ pub extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
 
 use libc::sockaddr;
 #[no_mangle]
-pub extern "C" fn bind(sockfd: c_int, addr: * const sockaddr , addrlen: u8) -> c_int {
+pub extern "C" fn bind(sockfd: c_int, addr: *const sockaddr, addrlen: u8) -> c_int {
     lazy_static! {
         static ref BIND_FUNC: BindFunc = get_libc_func!(BindFunc, "bind");
     }
@@ -151,8 +151,9 @@ pub extern "C" fn bind(sockfd: c_int, addr: * const sockaddr , addrlen: u8) -> c
 #[allow(private_no_mangle_fns)]
 #[allow(dead_code)]
 #[allow(unused_variables)]
-/* pub */extern "C" fn lseek64(fd: c_int, offset: off_t, whence: c_int) -> off_t {
-    /* TODO -- create a macro to abstract seek/seek64?  define a off64_t type? */
+// pub
+extern "C" fn lseek64(fd: c_int, offset: off_t, whence: c_int) -> off_t {
+    // TODO -- create a macro to abstract seek/seek64?  define a off64_t type?
     -1 as off_t
 }
 
@@ -162,7 +163,8 @@ pub extern "C" fn bind(sockfd: c_int, addr: * const sockaddr , addrlen: u8) -> c
 #[no_mangle]
 #[allow(private_no_mangle_fns)]
 #[allow(dead_code)]
-/* pub */extern "C" fn mmap(addr: *mut c_void,
+// pub
+extern "C" fn mmap(addr: *mut c_void,
                    length_: size_t,
                    prot: c_int,
                    flags: c_int,

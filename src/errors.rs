@@ -1,11 +1,11 @@
 extern crate libc;
 
-//use std::dynamic_lib::DynamicLibrary;
-//const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
+// use std::dynamic_lib::DynamicLibrary;
+// const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
 //  These wrappers might be effective, but they're not
 //  permitted:
-//unsafe impl Sync for DynamicLibrary { }
-//unsafe impl Send for DynamicLibrary { }
+// unsafe impl Sync for DynamicLibrary { }
+// unsafe impl Send for DynamicLibrary { }
 
 use std::sync::RwLock;
 use std::hash::Hasher;
@@ -13,11 +13,11 @@ use std::collections::hash_set::HashSet;
 use std::hash::BuildHasher;
 
 pub struct SomeHashState {
-    //exists because on older linux systems w/o entropy
+    // exists because on older linux systems w/o entropy
     //   syscall the default hash state will do open()
     //   which will recurse and deadlock on the RwLock
     //  resource.
-    hash: u64
+    hash: u64,
 }
 
 impl BuildHasher for SomeHashState {
@@ -30,7 +30,7 @@ impl BuildHasher for SomeHashState {
 impl Default for SomeHashState {
     #[inline]
     fn default() -> SomeHashState {
-        SomeHashState{ hash: 0 }
+        SomeHashState { hash: 0 }
     }
 }
 impl Hasher for SomeHashState {
@@ -48,11 +48,11 @@ pub type AlternateHashSet = HashSet<c_int, SomeHashState>;
 
 lazy_static! {
     pub static ref DELAY_FDS: RwLock<AlternateHashSet>
-                                                = RwLock::new(HashSet::with_hasher(SomeHashState::default()));
+            = RwLock::new(HashSet::with_hasher(SomeHashState::default()));
     pub static ref ERR_FDS: RwLock<AlternateHashSet>
-                                                = RwLock::new(HashSet::with_hasher(SomeHashState::default()));
-    //static ref LIBC: RwLock<DynamicLibrary>
-        // = RwLock::new(DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))).unwrap());
+            = RwLock::new(HashSet::with_hasher(SomeHashState::default()));
+// static ref LIBC: RwLock<DynamicLibrary>
+// = RwLock::new(DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))).unwrap());
 }
 
 
@@ -84,20 +84,25 @@ macro_rules! get_libc_func(
 
 
 
-pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t,
-               ssize_t, sockaddr, sockaddr_in };
+pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t, sockaddr,
+               sockaddr_in};
 
-pub type OpenFunc = extern "C" fn(* const c_char, c_int, mode_t) -> c_int;
-pub type ReadFunc = extern "C" fn(fd: c_int, buf: * mut c_void, nbytes: c_int) -> ssize_t;
+pub type OpenFunc = extern "C" fn(*const c_char, c_int, mode_t) -> c_int;
+pub type ReadFunc = extern "C" fn(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t;
 pub type WriteFunc = ReadFunc;
-pub type MmapFunc = extern "C" fn(addr: *mut c_void, length_: size_t, prot: c_int,
-                   flags: c_int, fd: c_int, offset: off_t) -> *mut c_void;
+pub type MmapFunc = extern "C" fn(addr: *mut c_void,
+                                  length_: size_t,
+                                  prot: c_int,
+                                  flags: c_int,
+                                  fd: c_int,
+                                  offset: off_t)
+                                  -> *mut c_void;
 pub type CloseFunc = extern "C" fn(fd: c_int) -> c_int;
 pub type IoctlFunc = extern "C" fn(c_int, c_ulong, ...) -> c_int;
 pub type SeekFunc = extern "C" fn(c_int, off_t, c_int) -> off_t;
 pub type Dup2Func = extern "C" fn(c_int, c_int) -> c_int;
 pub type Dup3Func = extern "C" fn(c_int, c_int, c_int) -> c_int;
-pub type BindFunc = extern "C" fn(c_int, * const sockaddr, u8) -> c_int;
+pub type BindFunc = extern "C" fn(c_int, *const sockaddr, u8) -> c_int;
 
 macro_rules! get_delay_amount_ms(
         ($funcname: expr) =>
@@ -169,10 +174,12 @@ pub fn get_item_likelihood(env_var: &'static str) -> f32 {
     use errors::LIKELIHOOD_CERTAIN_PCT;
 
     match env::var(env_var) {
-        Ok(p) => match p.parse::<f32>() {
-            Ok(i) => i,
-            Err(_) => LIKELIHOOD_CERTAIN_PCT,
-        },
+        Ok(p) => {
+            match p.parse::<f32>() {
+                Ok(i) => i,
+                Err(_) => LIKELIHOOD_CERTAIN_PCT,
+            }
+        }
         Err(_) => LIKELIHOOD_CERTAIN_PCT,
     }
 }
@@ -230,36 +237,36 @@ macro_rules! matchesPath(
  * @return true if $addr matches any of the addresses specified by
  *      std::env::var($env_name), false otherwise.
  */
- pub unsafe fn matches_addr(addr: *const libc::sockaddr, env_name: &str) -> bool {
-            use std::path::Path;
-            use std::env;
-            use std::net::ToSocketAddrs;
-            use std::net::{SocketAddr, SocketAddrV4,Ipv4Addr};
-            use std::mem;
+pub unsafe fn matches_addr(addr: *const libc::sockaddr, env_name: &str) -> bool {
+    use std::env;
+    use std::net::ToSocketAddrs;
+    use std::net::{SocketAddrV4, Ipv4Addr};
 
-            let addr_ =  {
-                let ptr: *const libc::sockaddr = addr;
-                *(ptr as *const libc::sockaddr_in)
-            };
-            let ipv4_addr = SocketAddrV4::new(Ipv4Addr::new(
-                    (addr_.sin_addr.s_addr & 0x0ff000000) as u8,
-                    (addr_.sin_addr.s_addr & 0x000ff0000) as u8,
-                    (addr_.sin_addr.s_addr & 0x00000ff00) as u8,
-                    (addr_.sin_addr.s_addr & 0x0000000ff) as u8),
-                addr_.sin_port);
-            let socket_addr = ToSocketAddrs::to_socket_addrs(&ipv4_addr).unwrap();
-            let addr_to_match = socket_addr.clone().next().unwrap();
+    let addr_ = {
+        let ptr: *const libc::sockaddr = addr;
+        *(ptr as *const libc::sockaddr_in)
+    };
 
-            match env::var(env_name) {
-                Ok(p) => {
-                    match p.to_socket_addrs() {
-                        Ok(list) => { list.clone().any(|addr| addr == addr_to_match) }
-                        Err(_) => { false }
-                    }
-                }
-                Err(_) => false
+    let s_addr = addr_.sin_addr.s_addr;
+    let ipv4_addr = SocketAddrV4::new(Ipv4Addr::new(((s_addr & 0x0ff000000) >> 24) as u8,
+                                                    ((s_addr & 0x000ff0000) >> 16) as u8,
+                                                    ((s_addr & 0x00000ff00) >> 8) as u8,
+                                                    (s_addr & 0x0000000ff) as u8),
+                                      addr_.sin_port);
+    let socket_addr = ToSocketAddrs::to_socket_addrs(&ipv4_addr).unwrap();
+    let addr_to_match = socket_addr.clone().next().unwrap();
+
+    match env::var(env_name) {
+        Ok(p) => {
+            let socket_text = p + ":0";
+            match socket_text.to_socket_addrs() {
+                Ok(list) => list.clone().any(|addr| addr.ip() == addr_to_match.ip()),
+                Err(_) => false,
             }
         }
+        Err(_) => false,
+    }
+}
 
 
 
@@ -324,8 +331,7 @@ mod test {
 
     #[test]
     fn test_addr() {
-        use std::net::{Ipv4Addr, SocketAddrV4};
-        use libc::sockaddr_in;
+        use std::net::Ipv4Addr;
         use std::mem;
 
         let ip = Ipv4Addr::new(127, 0, 0, 1);
@@ -335,7 +341,10 @@ mod test {
             sin_family: libc::AF_INET as u16,
             sin_zero: [0 as u8; 8],
         };
-        let sock = unsafe { mem::transmute::<*const libc::sockaddr_in, *const libc::sockaddr>( &sock_) };
+        let sock =
+            unsafe { mem::transmute::<*const libc::sockaddr_in, *const libc::sockaddr>(&sock_) };
+
+        println!("sin_addr: {:?}", libc::in_addr_t::from(ip));
 
         env::set_var("TEST_ADDR", "127.0.0.1");
         assert!(unsafe { matches_addr(sock, "TEST_ADDR") });
