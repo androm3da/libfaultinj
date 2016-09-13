@@ -1,5 +1,4 @@
-
-
+extern crate libc;
 
 //use std::dynamic_lib::DynamicLibrary;
 //const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
@@ -86,7 +85,7 @@ macro_rules! get_libc_func(
 
 
 pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t,
-               ssize_t, sockaddr, };
+               ssize_t, sockaddr, sockaddr_in };
 
 pub type OpenFunc = extern "C" fn(* const c_char, c_int, mode_t) -> c_int;
 pub type ReadFunc = extern "C" fn(fd: c_int, buf: * mut c_void, nbytes: c_int) -> ssize_t;
@@ -228,16 +227,39 @@ macro_rules! matchesPath(
     }));
 
 /**
- * @return true if $addr matches the address specified by
+ * @return true if $addr matches any of the addresses specified by
  *      std::env::var($env_name), false otherwise.
  */
-macro_rules! matchesAddr(
-            ($addr: expr, $env_name: expr) =>
-        (
-        {
-            false
+ pub unsafe fn matches_addr(addr: *const libc::sockaddr, env_name: &str) -> bool {
+            use std::path::Path;
+            use std::env;
+            use std::net::ToSocketAddrs;
+            use std::net::{SocketAddr, SocketAddrV4,Ipv4Addr};
+            use std::mem;
+
+            let addr_ =  {
+                let ptr: *const libc::sockaddr = addr;
+                *(ptr as *const libc::sockaddr_in)
+            };
+            let ipv4_addr = SocketAddrV4::new(Ipv4Addr::new(
+                    (addr_.sin_addr.s_addr & 0x0ff000000) as u8,
+                    (addr_.sin_addr.s_addr & 0x000ff0000) as u8,
+                    (addr_.sin_addr.s_addr & 0x00000ff00) as u8,
+                    (addr_.sin_addr.s_addr & 0x0000000ff) as u8),
+                addr_.sin_port);
+            let socket_addr = ToSocketAddrs::to_socket_addrs(&ipv4_addr).unwrap();
+            let addr_to_match = socket_addr.clone().next().unwrap();
+
+            match env::var(env_name) {
+                Ok(p) => {
+                    match p.to_socket_addrs() {
+                        Ok(list) => { list.clone().any(|addr| addr == addr_to_match) }
+                        Err(_) => { false }
+                    }
+                }
+                Err(_) => false
+            }
         }
-    ));
 
 
 
@@ -297,6 +319,27 @@ pub fn add_fd_if_old_present(oldfd: c_int, newfd: c_int) {
 mod test {
     use std::env;
     use std::path::Path;
+    use super::matches_addr;
+    extern crate libc;
+
+    #[test]
+    fn test_addr() {
+        use std::net::{Ipv4Addr, SocketAddrV4};
+        use libc::sockaddr_in;
+        use std::mem;
+
+        let ip = Ipv4Addr::new(127, 0, 0, 1);
+        let sock_ = libc::sockaddr_in {
+            sin_port: 0,
+            sin_addr: libc::in_addr { s_addr: libc::in_addr_t::from(ip) },
+            sin_family: libc::AF_INET as u16,
+            sin_zero: [0 as u8; 8],
+        };
+        let sock = unsafe { mem::transmute::<*const libc::sockaddr_in, *const libc::sockaddr>( &sock_) };
+
+        env::set_var("TEST_ADDR", "127.0.0.1");
+        assert!(unsafe { matches_addr(sock, "TEST_ADDR") });
+    }
 
     #[test]
     fn test_delay() {

@@ -14,6 +14,7 @@ pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
 mod errors;
 use errors::{OpenFunc, ReadFunc, WriteFunc, SeekFunc, CloseFunc, MmapFunc, Dup2Func, Dup3Func,
              IoctlFunc, BindFunc, ERR_FDS, DELAY_FDS, };
+use self::errors::matches_addr;
 use errors::{remove_fd_if_present, add_fd_if_old_present};
 
 // These functions are designed to conform to their
@@ -133,11 +134,11 @@ pub extern "C" fn bind(sockfd: c_int, addr: * const sockaddr , addrlen: u8) -> c
         static ref BIND_FUNC: BindFunc = get_libc_func!(BindFunc, "bind");
     }
 
-    if matchesAddr!(addr, "LIBFAULTINJ_ERROR_PATH") {
+    if unsafe { matches_addr(addr, "LIBFAULTINJ_ERROR_PATH") } {
         ERR_FDS.write().unwrap().insert(sockfd);
     }
 
-    if matchesAddr!(addr, "LIBFAULTINJ_DELAY_PATH") {
+    if unsafe { matches_addr(addr, "LIBFAULTINJ_DELAY_PATH") } {
         DELAY_FDS.write().unwrap().insert(sockfd);
     }
 
