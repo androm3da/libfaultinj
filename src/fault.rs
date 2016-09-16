@@ -187,6 +187,20 @@ pub extern "C" fn bind(sockfd: c_int, addr: *const sockaddr, addrlen: u8) -> c_i
     BIND_FUNC(sockfd, addr, addrlen)
 }
 
+#[no_mangle]
+pub extern "C" fn fstat(fd: c_int, buf: *const libc::stat) -> c_int {
+    lazy_static! {
+        static ref FSTAT_FUNC: FstatFunc = get_libc_func!(FstatFunc, "fstat"); // fixme
+    }
+
+    println!("intercepted fstat for {:?}", fd);
+    injectFaults!(fd, "fstat", -1);
+
+    FSTAT_FUNC(fd, buf)
+}
+
+
+
 // DISABLED -- these calls are disabled until problems caused can be addressed
 #[no_mangle]
 #[allow(private_no_mangle_fns)]
@@ -199,19 +213,6 @@ extern "C" fn stat(pathname: *const c_char, buf: *mut libc::stat) -> c_int {
     // TO BE IMPLEMENTED
     STAT_FUNC(pathname, buf) - 1
 }
-
-#[no_mangle]
-#[allow(private_no_mangle_fns)]
-#[allow(dead_code)]
-#[allow(unused_variables)]
-extern "C" fn fstat(fd: c_int, buf: *const libc::stat) -> c_int {
-    lazy_static! {
-        static ref FSTAT_FUNC: FstatFunc = get_libc_func!(FstatFunc, "fstat"); // fixme
-    }
-    // TO BE IMPLEMENTED
-    FSTAT_FUNC(fd, buf)
-}
-
 
 
 #[no_mangle]

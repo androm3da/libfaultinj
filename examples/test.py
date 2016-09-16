@@ -18,7 +18,8 @@ def func_under_test(filename):
         raise IOFailure()
 
 
-def clear():
+
+def cleanup_env():
     '''clears the `libfaultinj` environment settings
     '''
     items = [k for k in os.environ.keys() if 'LIBFAULTINJ' in k]
@@ -30,7 +31,7 @@ class FileTest(TestCase):
     FILE_TO_FAIL_ON = './somefile.txt'
 
     def setUp(self):
-        clear()
+        cleanup_env()
         with open(FileTest.FILE_TO_FAIL_ON, 'wt') as f:
             f.write('file contents')
 
@@ -98,10 +99,7 @@ class NetTest(TestCase):
 
         self.server_listen_thread.start()
 
-    def test_expect_success__(self):
-        pass
-
-    def _connect_and_write(self, byte_array_):
+    def _connect_and_send(self, byte_array_):
         from contextlib import closing
         import socket
 
@@ -116,22 +114,21 @@ class NetTest(TestCase):
 
         return connect_dur_sec, write_dur_sec
 
-    def test_write_delay(self):
+    def test_send_delay(self):
         os.environ['LIBFAULTINJ_DELAY_PATH'] = 'ignore'
-        connect_dur_sec, write_dur_sec = self._connect_and_write(b'T')
+        connect_dur_sec, write_dur_sec = self._connect_and_send(b'T')
         assert write_dur_sec < NetTest.MAX_WRITE_DUR_SEC
 
         os.environ['LIBFAULTINJ_DELAY_SEND_MS'] = str(int(NetTest.INJECTED_WRITE_DELAY_DUR_SEC * 1000))
         os.environ['LIBFAULTINJ_DELAY_PATH'] = self.local_addr
-        connect_dur_sec, write_dur_sec = self._connect_and_write(b't')
-        assert write_dur_sec > NetTest.INJECTED_WRITE_DELAY_DUR_SEC
+        connect_dur_sec, send_dur_sec = self._connect_and_send(b't')
+        assert send_dur_sec > NetTest.INJECTED_WRITE_DELAY_DUR_SEC
 
     def tearDown(self):
         self.server.shutdown()
         self.server.server_close()
         self.server_listen_thread.join()
 
-        entries_to_clear = [entry for entry in os.environ.keys() if 'LIBFAULTINJ' in entry]
-        for entry in entries_to_clear:
-            del os.environ[entry]
+        cleanup_env()
+
 #        print('request occurred', self.request_occurred.is_set())
