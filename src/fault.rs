@@ -1,5 +1,3 @@
-#![feature(lookup_host)]
-
 extern crate libc;
 extern crate errno;
 extern crate rand;
@@ -14,7 +12,8 @@ pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
 #[macro_use]
 mod errors;
 use errors::{OpenFunc, ReadFunc, WriteFunc, SeekFunc, CloseFunc, MmapFunc, Dup2Func, Dup3Func,
-             IoctlFunc, BindFunc, StatFunc, FstatFunc, SocketFunc, ConnectFunc, ERR_FDS, DELAY_FDS};
+             IoctlFunc, BindFunc, StatFunc, FstatFunc, SocketFunc, ConnectFunc, SendRecvFunc,
+             ERR_FDS, DELAY_FDS};
 use self::errors::matches_addr;
 use errors::{remove_fd_if_present, add_fd_if_old_present};
 
@@ -137,27 +136,39 @@ pub extern "C" fn connect(sockfd: c_int, addr: *const sockaddr, addrlen: socklen
     }
 
     if unsafe { matches_addr(addr, "LIBFAULTINJ_ERROR_PATH") } {
-        println!("err matched w00t");
         ERR_FDS.write().unwrap().insert(sockfd);
-    } else {
-        use std::env;
-        println!("\tlooking err path {:?}",
-                 env::var("LIBFAULTINJ_ERROR_PATH"));
-
     }
 
     if unsafe { matches_addr(addr, "LIBFAULTINJ_DELAY_PATH") } {
         DELAY_FDS.write().unwrap().insert(sockfd);
-        println!("delay matched w00t");
-    } else {
-        use std::env;
-        println!("\tlooking delay path {:?}",
-                 env::var("LIBFAULTINJ_DELAY_PATH"));
-
     }
 
     CONNECT_FUNC(sockfd, addr, addrlen)
 }
+
+#[no_mangle]
+pub extern "C" fn send(sockfd: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> ssize_t {
+    lazy_static! {
+        static ref SEND_FUNC: SendRecvFunc = get_libc_func!(SendRecvFunc, "send");
+    }
+
+    injectFaults!(sockfd, "send", -1);
+
+    SEND_FUNC(sockfd, buf, len, flags)
+}
+
+#[no_mangle]
+pub extern "C" fn recv(sockfd: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> ssize_t {
+    lazy_static! {
+        static ref RECV_FUNC: SendRecvFunc = get_libc_func!(SendRecvFunc, "recv");
+    }
+
+    injectFaults!(sockfd, "recv", -1);
+
+
+    RECV_FUNC(sockfd, buf, len, flags)
+}
+
 
 #[no_mangle]
 pub extern "C" fn bind(sockfd: c_int, addr: *const sockaddr, addrlen: u8) -> c_int {
@@ -166,23 +177,11 @@ pub extern "C" fn bind(sockfd: c_int, addr: *const sockaddr, addrlen: u8) -> c_i
     }
 
     if unsafe { matches_addr(addr, "LIBFAULTINJ_ERROR_PATH") } {
-        println!("err matched w00t");
         ERR_FDS.write().unwrap().insert(sockfd);
-    } else {
-        use std::env;
-        println!("\tlooking err path {:?}",
-                 env::var("LIBFAULTINJ_ERROR_PATH"));
-
     }
 
-    println!("delay matched w00t");
     if unsafe { matches_addr(addr, "LIBFAULTINJ_DELAY_PATH") } {
         DELAY_FDS.write().unwrap().insert(sockfd);
-    } else {
-        use std::env;
-        println!("\tlooking delay path {:?}",
-                 env::var("LIBFAULTINJ_DELAY_PATH"));
-
     }
 
     BIND_FUNC(sockfd, addr, addrlen)

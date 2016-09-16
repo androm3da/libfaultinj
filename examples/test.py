@@ -55,7 +55,7 @@ class NetTest(TestCase):
     #   This value should be significantly larger than MAX_WRITE_DUR_SEC
     #   so that there's no risk of a false negative of the injected delay
     #   test.
-    INJECTED_WRITE_DELAY_DUR_SEC = 10.
+    INJECTED_WRITE_DELAY_DUR_SEC = 10
 
     # Value should represent the maximum duration to send a single
     #   byte over a TCP connection in the 'established' state using
@@ -63,8 +63,6 @@ class NetTest(TestCase):
     MAX_WRITE_DUR_SEC = 1.
 
     def setUp(self):
-        os.environ['LIBFAULTINJ_DELAY_PATH'] = 'neutral'
-        os.environ['LIBFAULTINJ_ERROR_PATH'] = 'neutral_e'
         try:
             import socketserver
         except ImportError:
@@ -120,20 +118,11 @@ class NetTest(TestCase):
 
     def test_write_delay(self):
         os.environ['LIBFAULTINJ_DELAY_PATH'] = 'ignore'
-
-        print('just after setting DELAY_PATH to "ignore"')
-        import sys
-        sys.stdout.flush()
         connect_dur_sec, write_dur_sec = self._connect_and_write(b'T')
         assert write_dur_sec < NetTest.MAX_WRITE_DUR_SEC
 
+        os.environ['LIBFAULTINJ_DELAY_SEND_MS'] = str(int(NetTest.INJECTED_WRITE_DELAY_DUR_SEC * 1000))
         os.environ['LIBFAULTINJ_DELAY_PATH'] = self.local_addr
-        print('just after setting DELAY_PATH to "{}"'.format(self.local_addr))
-        import sys
-        sys.stdout.flush()
-
-#        time.sleep(30.)
-        os.environ['LIBFAULTINJ_DELAY_WRITE_MS'] = str(NetTest.INJECTED_WRITE_DELAY_DUR_SEC * 1000)
         connect_dur_sec, write_dur_sec = self._connect_and_write(b't')
         assert write_dur_sec > NetTest.INJECTED_WRITE_DELAY_DUR_SEC
 
@@ -145,4 +134,4 @@ class NetTest(TestCase):
         entries_to_clear = [entry for entry in os.environ.keys() if 'LIBFAULTINJ' in entry]
         for entry in entries_to_clear:
             del os.environ[entry]
-        print('request occurred', self.request_occurred.is_set())
+#        print('request occurred', self.request_occurred.is_set())

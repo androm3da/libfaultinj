@@ -179,7 +179,7 @@ macro_rules! returnError(
 
 pub fn get_item_likelihood(env_var: &'static str) -> f32 {
     use std::env;
-    use errors::LIKELIHOOD_CERTAIN_PCT;
+    use self::LIKELIHOOD_CERTAIN_PCT;
 
     match env::var(env_var) {
         Ok(p) => {
@@ -248,8 +248,7 @@ macro_rules! matchesPath(
 pub unsafe fn matches_addr(addr: *const libc::sockaddr, env_name: &str) -> bool {
     use std::env;
     use std::net::ToSocketAddrs;
-    use std::net::{SocketAddrV4, Ipv4Addr, IpAddr, SocketAddr};
-    use std::net::lookup_host;
+    use std::net::{SocketAddrV4, Ipv4Addr, IpAddr};
 
     let addr_ = {
         let ptr: *const libc::sockaddr = addr;
@@ -257,21 +256,20 @@ pub unsafe fn matches_addr(addr: *const libc::sockaddr, env_name: &str) -> bool 
     };
 
     let s_addr = addr_.sin_addr.s_addr;
-    let ipv4_addr = SocketAddrV4::new(Ipv4Addr::new(((s_addr & 0x0ff000000) >> 24) as u8,
-                                                    ((s_addr & 0x000ff0000) >> 16) as u8,
+    let ipv4_addr = SocketAddrV4::new(Ipv4Addr::new((s_addr & 0x0000000ff) as u8,
                                                     ((s_addr & 0x00000ff00) >> 8) as u8,
-                                                    (s_addr & 0x0000000ff) as u8),
+                                                    ((s_addr & 0x000ff0000) >> 16) as u8,
+                                                    ((s_addr & 0x0ff000000) >> 24) as u8),
                                       addr_.sin_port);
 
-    //  TODO: when we are called from the connect() intercept, this recurses
-    // on itself:
     let socket_addr = ToSocketAddrs::to_socket_addrs(&ipv4_addr).unwrap();
     let addr_to_match = socket_addr.clone().next().unwrap();
+    use std::str::FromStr;
 
     match env::var(env_name) {
         Ok(p) => {
-            match lookup_host(p.as_ref()) {
-                Ok(mut list) => list.any(|addr| addr.ip() == addr_to_match.ip()),
+            match IpAddr::from_str(p.as_ref()) {
+                Ok(ip_addr) => ip_addr == addr_to_match.ip(),
                 Err(_) => false,
             }
         }
@@ -345,7 +343,7 @@ mod test {
         use std::net::Ipv4Addr;
         use std::mem;
 
-        let ip = Ipv4Addr::new(127, 0, 0, 1);
+        let ip = Ipv4Addr::new(1, 0, 0, 127); // FIXME lame hack do ntohl instead
         let sock_ = libc::sockaddr_in {
             sin_port: 0,
             sin_addr: libc::in_addr { s_addr: libc::in_addr_t::from(ip) },
@@ -354,8 +352,6 @@ mod test {
         };
         let sock =
             unsafe { mem::transmute::<*const libc::sockaddr_in, *const libc::sockaddr>(&sock_) };
-
-        println!("sin_addr: {:?}", libc::in_addr_t::from(ip));
 
         env::set_var("TEST_ADDR", "127.0.0.1");
         assert!(unsafe { matches_addr(sock, "TEST_ADDR") });
@@ -374,6 +370,9 @@ mod test {
 
         env::set_var("LIBFAULTINJ_DELAY_READ_MS", "99");
         assert_eq!(get_delay_amount_ms!("read"), Duration::from_millis(99));
+
+        env::set_var("LIBFAULTINJ_DELAY_READ_MS", "10000.0");
+        assert_eq!(get_delay_amount_ms!("read"), Duration::from_millis(200));
     }
 
     #[test]
