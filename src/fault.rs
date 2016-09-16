@@ -1,3 +1,4 @@
+#![feature(lookup_host)]
 
 extern crate libc;
 extern crate errno;
@@ -13,7 +14,7 @@ pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t};
 #[macro_use]
 mod errors;
 use errors::{OpenFunc, ReadFunc, WriteFunc, SeekFunc, CloseFunc, MmapFunc, Dup2Func, Dup3Func,
-             IoctlFunc, BindFunc, ERR_FDS, DELAY_FDS};
+             IoctlFunc, BindFunc, StatFunc, FstatFunc, SocketFunc, ConnectFunc, ERR_FDS, DELAY_FDS};
 use self::errors::matches_addr;
 use errors::{remove_fd_if_present, add_fd_if_old_present};
 
@@ -128,6 +129,36 @@ pub extern "C" fn ioctl(fd: c_int, req: c_ulong, argp: *mut c_char) -> c_int {
 }
 
 use libc::sockaddr;
+use self::errors::socklen_t;
+#[no_mangle]
+pub extern "C" fn connect(sockfd: c_int, addr: *const sockaddr, addrlen: socklen_t) -> c_int {
+    lazy_static! {
+        static ref CONNECT_FUNC: ConnectFunc = get_libc_func!(ConnectFunc, "connect");
+    }
+
+    if unsafe { matches_addr(addr, "LIBFAULTINJ_ERROR_PATH") } {
+        println!("err matched w00t");
+        ERR_FDS.write().unwrap().insert(sockfd);
+    } else {
+        use std::env;
+        println!("\tlooking err path {:?}",
+                 env::var("LIBFAULTINJ_ERROR_PATH"));
+
+    }
+
+    if unsafe { matches_addr(addr, "LIBFAULTINJ_DELAY_PATH") } {
+        DELAY_FDS.write().unwrap().insert(sockfd);
+        println!("delay matched w00t");
+    } else {
+        use std::env;
+        println!("\tlooking delay path {:?}",
+                 env::var("LIBFAULTINJ_DELAY_PATH"));
+
+    }
+
+    CONNECT_FUNC(sockfd, addr, addrlen)
+}
+
 #[no_mangle]
 pub extern "C" fn bind(sockfd: c_int, addr: *const sockaddr, addrlen: u8) -> c_int {
     lazy_static! {
@@ -135,17 +166,68 @@ pub extern "C" fn bind(sockfd: c_int, addr: *const sockaddr, addrlen: u8) -> c_i
     }
 
     if unsafe { matches_addr(addr, "LIBFAULTINJ_ERROR_PATH") } {
+        println!("err matched w00t");
         ERR_FDS.write().unwrap().insert(sockfd);
+    } else {
+        use std::env;
+        println!("\tlooking err path {:?}",
+                 env::var("LIBFAULTINJ_ERROR_PATH"));
+
     }
 
+    println!("delay matched w00t");
     if unsafe { matches_addr(addr, "LIBFAULTINJ_DELAY_PATH") } {
         DELAY_FDS.write().unwrap().insert(sockfd);
+    } else {
+        use std::env;
+        println!("\tlooking delay path {:?}",
+                 env::var("LIBFAULTINJ_DELAY_PATH"));
+
     }
 
     BIND_FUNC(sockfd, addr, addrlen)
 }
 
 // DISABLED -- these calls are disabled until problems caused can be addressed
+#[no_mangle]
+#[allow(private_no_mangle_fns)]
+#[allow(dead_code)]
+#[allow(unused_variables)]
+extern "C" fn stat(pathname: *const c_char, buf: *mut libc::stat) -> c_int {
+    lazy_static! {
+        static ref STAT_FUNC: StatFunc = get_libc_func!(StatFunc, "stat"); // fixme
+    }
+    // TO BE IMPLEMENTED
+    STAT_FUNC(pathname, buf) - 1
+}
+
+#[no_mangle]
+#[allow(private_no_mangle_fns)]
+#[allow(dead_code)]
+#[allow(unused_variables)]
+extern "C" fn fstat(fd: c_int, buf: *const libc::stat) -> c_int {
+    lazy_static! {
+        static ref FSTAT_FUNC: FstatFunc = get_libc_func!(FstatFunc, "fstat"); // fixme
+    }
+    // TO BE IMPLEMENTED
+    FSTAT_FUNC(fd, buf)
+}
+
+
+
+#[no_mangle]
+#[allow(private_no_mangle_fns)]
+#[allow(dead_code)]
+#[allow(unused_variables)]
+extern "C" fn socket(domain: c_int, type_: c_int, protocol: c_int) -> c_int {
+    lazy_static! {
+        static ref SOCKET_FUNC: SocketFunc = get_libc_func!(SocketFunc, "socket");
+    }
+
+    //  injection strategy TBD
+
+    SOCKET_FUNC(domain, type_, protocol)
+}
 
 #[no_mangle]
 #[allow(private_no_mangle_fns)]

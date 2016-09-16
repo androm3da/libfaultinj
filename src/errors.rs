@@ -87,6 +87,9 @@ macro_rules! get_libc_func(
 pub use libc::{c_char, c_int, c_ulong, c_void, off_t, size_t, mode_t, ssize_t, sockaddr,
                sockaddr_in};
 
+#[allow(non_camel_case_types)]
+pub type socklen_t = u8;
+
 pub type OpenFunc = extern "C" fn(*const c_char, c_int, mode_t) -> c_int;
 pub type ReadFunc = extern "C" fn(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t;
 pub type WriteFunc = ReadFunc;
@@ -102,7 +105,12 @@ pub type IoctlFunc = extern "C" fn(c_int, c_ulong, ...) -> c_int;
 pub type SeekFunc = extern "C" fn(c_int, off_t, c_int) -> off_t;
 pub type Dup2Func = extern "C" fn(c_int, c_int) -> c_int;
 pub type Dup3Func = extern "C" fn(c_int, c_int, c_int) -> c_int;
-pub type BindFunc = extern "C" fn(c_int, *const sockaddr, u8) -> c_int;
+pub type BindFunc = extern "C" fn(c_int, *const sockaddr, socklen_t) -> c_int;
+pub type SocketFunc = extern "C" fn(c_int, c_int, c_int) -> c_int;
+pub type ConnectFunc = extern "C" fn(c_int, *const sockaddr, socklen_t) -> c_int;
+pub type StatFunc = extern "C" fn(*const c_char, *mut libc::stat) -> c_int;
+pub type FstatFunc = extern "C" fn(c_int, *const libc::stat) -> c_int;
+pub type SendRecvFunc = extern "C" fn(c_int, *mut c_void, size_t, c_int) -> ssize_t;
 
 macro_rules! get_delay_amount_ms(
         ($funcname: expr) =>
@@ -240,7 +248,8 @@ macro_rules! matchesPath(
 pub unsafe fn matches_addr(addr: *const libc::sockaddr, env_name: &str) -> bool {
     use std::env;
     use std::net::ToSocketAddrs;
-    use std::net::{SocketAddrV4, Ipv4Addr};
+    use std::net::{SocketAddrV4, Ipv4Addr, IpAddr, SocketAddr};
+    use std::net::lookup_host;
 
     let addr_ = {
         let ptr: *const libc::sockaddr = addr;
@@ -253,14 +262,16 @@ pub unsafe fn matches_addr(addr: *const libc::sockaddr, env_name: &str) -> bool 
                                                     ((s_addr & 0x00000ff00) >> 8) as u8,
                                                     (s_addr & 0x0000000ff) as u8),
                                       addr_.sin_port);
+
+    //  TODO: when we are called from the connect() intercept, this recurses
+    // on itself:
     let socket_addr = ToSocketAddrs::to_socket_addrs(&ipv4_addr).unwrap();
     let addr_to_match = socket_addr.clone().next().unwrap();
 
     match env::var(env_name) {
         Ok(p) => {
-            let socket_text = p + ":0";
-            match socket_text.to_socket_addrs() {
-                Ok(list) => list.clone().any(|addr| addr.ip() == addr_to_match.ip()),
+            match lookup_host(p.as_ref()) {
+                Ok(mut list) => list.any(|addr| addr.ip() == addr_to_match.ip()),
                 Err(_) => false,
             }
         }
