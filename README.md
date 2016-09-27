@@ -82,6 +82,8 @@ quite a bit of functionality.
 * `lseek`
 * `write`
 * `dup3`
+* `connect`
+* `bind`
 
 ### Inject Errors
 First, set `LIBFAULTINJ_ERROR_PATH` to the directory or filename to have errors injected upon.  Then set

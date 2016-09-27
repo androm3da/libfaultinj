@@ -68,6 +68,18 @@ pub extern "C" fn lseek(fd: c_int, offset: off_t, whence: c_int) -> off_t {
 }
 
 #[no_mangle]
+pub extern "C" fn lseek64(fd: c_int, offset: off_t, whence: c_int) -> off_t {
+    lazy_static! {
+        static ref SEEK_FUNC: SeekFunc = get_libc_func!(SeekFunc, "lseek64");
+    }
+
+    injectFaults!(fd, "lseek64", -1 as i64);
+
+    SEEK_FUNC(fd, offset, whence)
+}
+
+
+#[no_mangle]
 pub extern "C" fn write(fd: c_int, buf: *mut c_void, nbytes: c_int) -> ssize_t {
     lazy_static! {
         static ref WRITE_FUNC: WriteFunc = get_libc_func!(WriteFunc, "write");
@@ -227,16 +239,6 @@ extern "C" fn socket(domain: c_int, type_: c_int, protocol: c_int) -> c_int {
     //  injection strategy TBD
 
     SOCKET_FUNC(domain, type_, protocol)
-}
-
-#[no_mangle]
-#[allow(private_no_mangle_fns)]
-#[allow(dead_code)]
-#[allow(unused_variables)]
-// pub
-extern "C" fn lseek64(fd: c_int, offset: off_t, whence: c_int) -> off_t {
-    // TODO -- create a macro to abstract seek/seek64?  define a off64_t type?
-    -1 as off_t
 }
 
 // mmap() interception is disabled for now.  deadlocks on

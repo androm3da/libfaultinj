@@ -16,7 +16,7 @@ pub struct SomeHashState {
     // exists because on older linux systems w/o entropy
     //   syscall the default hash state will do open()
     //   which will recurse and deadlock on the RwLock
-    //  resource.
+    //   resource.
     hash: u64,
 }
 
@@ -51,33 +51,32 @@ lazy_static! {
             = RwLock::new(HashSet::with_hasher(SomeHashState::default()));
     pub static ref ERR_FDS: RwLock<AlternateHashSet>
             = RwLock::new(HashSet::with_hasher(SomeHashState::default()));
-// static ref LIBC: RwLock<DynamicLibrary>
-// = RwLock::new(DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))).unwrap());
+//    static ref LIBC: RwLock<DynamicLibrary>
+//            = RwLock::new(DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))).unwrap());
 }
-
 
 macro_rules! get_libc_func(
     ($destination_t:ty, $funcname:expr) =>
-        (
-            {
-                use dylib::DynamicLibrary;
-                use std::mem::transmute;
-                use std::path::Path;
+    (
+        {
+            use dylib::DynamicLibrary;
+            use std::mem::transmute;
+            use std::path::Path;
 
-                const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
+            const SYSTEM_C_LIBRARY: &'static str = "libc.so.6";
 
-                unsafe {
-                    let libc_dl = match DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))) {
-                        Ok(libc) => libc,
-                        Err(error) => panic!("Couldn't open libc: '{}'", error),
-                    };
+            unsafe {
+                let libc_dl = match DynamicLibrary::open(Some(Path::new(SYSTEM_C_LIBRARY))) {
+                    Ok(libc) => libc,
+                    Err(error) => panic!("Couldn't open libc: '{}'", error),
+                };
 
-                    match libc_dl.symbol::<c_void>($funcname) {
-                        Ok(open_func) => transmute::<* mut c_void, $destination_t>(open_func),
-                        Err(error) => panic!("Couldn't find '{}': '{}'", $funcname, error),
-                }
+                match libc_dl.symbol::<c_void>($funcname) {
+                    Ok(open_func) => transmute::<* mut c_void, $destination_t>(open_func),
+                    Err(error) => panic!("Couldn't find '{}': '{}'", $funcname, error),
             }
-        })
+        }
+    })
 );
 
 
