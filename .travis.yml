@@ -22,6 +22,7 @@ matrix:
       env: TARGET=aarch64-unknown-linux-gnu
       dist: trusty
       rust: nightly
+      sudo: required
       addons:
         apt:
           packages: *main_dependencies *aarch64_unknown_linux_gnu
@@ -29,6 +30,7 @@ matrix:
       env: TARGET=armv7-unknown-linux-gnueabihf
       dist: trusty
       rust: nightly
+      sudo: required
       addons:
         apt:
           packages: *main_dependencies &armv7_unknown_linux_gnueabihf
@@ -44,6 +46,7 @@ matrix:
       env: TARGET=x86_64-unknown-linux-gnu
       rust: nightly
       dist: trusty
+      sudo: required
 
 script:
   - cargo build --release
