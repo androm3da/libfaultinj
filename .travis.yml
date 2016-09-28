@@ -9,24 +9,29 @@ before_install:
 
 addons:
   apt:
-    packages: python3 ruby
+    packages: &main_dependencies
+      - python3
+      - ruby
 
 matrix:
   include:
     - os: osx
       env: TARGET=x86_64-apple-darwin
+      rust: nightly
     - os: linux
       env: TARGET=aarch64-unknown-linux-gnu
       dist: trusty
+      rust: nightly
       addons:
         apt:
-          packages: *aarch64_unknown_linux_gnu
+          packages: *main_dependencies *aarch64_unknown_linux_gnu
     - os: linux
       env: TARGET=armv7-unknown-linux-gnueabihf
       dist: trusty
+      rust: nightly
       addons:
         apt:
-          packages: &armv7_unknown_linux_gnueabihf
+          packages: *main_dependencies &armv7_unknown_linux_gnueabihf
             # Cross compiler and cross compiled C libraries
             - gcc-arm-linux-gnueabihf
             - libc6-armhf-cross
@@ -37,6 +42,7 @@ matrix:
       # need Trusty because the glibc in Precise is too old and doesn't support 64-bit arm
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
       dist: trusty
 
 script:
