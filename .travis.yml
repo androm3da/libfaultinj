@@ -3,7 +3,7 @@ cache: cargo
 rust:
  - nightly
 
-before_install:
+#before_install:
 #- sudo apt-get update
 #- sudo apt-get install python3 ruby
 
@@ -25,7 +25,9 @@ matrix:
       sudo: required
       addons:
         apt:
-          packages: *main_dependencies *aarch64_unknown_linux_gnu
+          packages:
+            - *main_dependencies
+            - *aarch64_unknown_linux_gnu
     - os: linux
       env: TARGET=armv7-unknown-linux-gnueabihf
       dist: trusty
@@ -33,14 +35,16 @@ matrix:
       sudo: required
       addons:
         apt:
-          packages: *main_dependencies &armv7_unknown_linux_gnueabihf
-            # Cross compiler and cross compiled C libraries
-            - gcc-arm-linux-gnueabihf
-            - libc6-armhf-cross
-            - libc6-dev-armhf-cross
-            # Transparent emulation
-            - qemu-user-static
-            - binfmt-support
+          packages:
+            - *main_dependencies
+            - &armv7_unknown_linux_gnueabihf
+              # Cross compiler and cross compiled C libraries
+              - gcc-arm-linux-gnueabihf
+              - libc6-armhf-cross
+              - libc6-dev-armhf-cross
+              # Transparent emulation
+              - qemu-user-static
+              - binfmt-support
       # need Trusty because the glibc in Precise is too old and doesn't support 64-bit arm
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu
