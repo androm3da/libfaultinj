@@ -1,12 +1,46 @@
 language: rust
+cache: cargo
 rust:
  - nightly
 
 before_install:
-- sudo apt-get update
-- sudo apt-get install python3 ruby
+#- sudo apt-get update
+#- sudo apt-get install python3 ruby
+
+addons:
+  apt:
+    packages: python3 ruby
+
+matrix:
+  include:
+    - os: osx
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      env: TARGET=aarch64-unknown-linux-gnu
+      dist: trusty
+      addons:
+        apt:
+          packages: *aarch64_unknown_linux_gnu
+    - os: linux
+      env: TARGET=armv7-unknown-linux-gnueabihf
+      dist: trusty
+      addons:
+        apt:
+          packages: &armv7_unknown_linux_gnueabihf
+            # Cross compiler and cross compiled C libraries
+            - gcc-arm-linux-gnueabihf
+            - libc6-armhf-cross
+            - libc6-dev-armhf-cross
+            # Transparent emulation
+            - qemu-user-static
+            - binfmt-support
+      # need Trusty because the glibc in Precise is too old and doesn't support 64-bit arm
+    - os: linux
+      env: TARGET=x86_64-unknown-linux-gnu
+      dist: trusty
+
 script:
-  - cargo build
+  - cargo build --release
   - cargo test
   - gem install test-unit
   - cd examples/ ; make

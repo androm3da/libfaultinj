@@ -10,17 +10,17 @@ you test whether your code is robust in the face of a stalled network
 connection or disk media error?  
 
 `libfaultinj` provides a facility that  intercepts the functions that drive
- much of an application's activity.  Regardless of whether you're using Java,
- Python, ruby, C, C++ -- nearly all calls to the system will go through the
- system's C library.  Many of them will involve functions like `open()`,
- `read()`, `write()` and `close()`.  Misbehavior here is all that it takes to
- make a good device seem bad.
+much of an application's activity.  Regardless of whether you're using Java,
+Python, ruby, C, C++ -- nearly all calls to the system will go through the
+system's C library.  Many of them will involve functions like `open()`,
+`read()`, `write()` and `close()`.  Misbehavior here is all that it takes to
+make a good device seem bad.
 
- By leveraging `libfaultinj` in your test suite, you can define what the
- acceptable results are for these oddities.  If the file write takes longer
- than you expect, your application should probably return a `5xx` HTTP status
- code, or throw an exception, or whatever's appropriate.  But it probably
- shouldn't flip out and `SIGBUS` or queue thousands of retries.
+By leveraging `libfaultinj` in your test suite, you can define what the
+acceptable results are for these oddities.  If the file write takes longer
+than you expect, your application should probably return a `5xx` HTTP status
+code, or throw an exception, or whatever's appropriate.  But it probably
+shouldn't flip out and `SIGBUS` or queue thousands of retries.
 
 [![Build Status](https://travis-ci.org/androm3da/libfaultinj.svg?branch=master)](https://travis-ci.org/androm3da/libfaultinj)
 
@@ -39,6 +39,9 @@ some others.
 TODO: testing w/`DYLD_INSERT_LIBRARIES` on OS X or other similar platforms.
 
 ## Usage
+
+You can download a binary release from github ([latest release](//github.com/androm3da/libfaultinj/releases/latest)), or build one
+yourself from the source:
 
 ### Building
 
@@ -63,9 +66,9 @@ Now you can use it via `LD_PRELOAD` per the examples like so:
 ### Overview
 There's two primary use cases that `libfaultinj` works well in:
 
-1. Unit tests, injecting specific narrow faults and asserting
+* Unit tests, injecting specific narrow faults and asserting
 specific expected results.
-2. System/integration tests, injecting fuzzy faults and asserting high-level
+* System/integration tests, injecting fuzzy faults and asserting high-level
 generic results ("didn't crash", e.g.)
 
 ## High level examples
