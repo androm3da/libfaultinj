@@ -205,7 +205,6 @@ pub extern "C" fn fstat(fd: c_int, buf: *const libc::stat) -> c_int {
         static ref FSTAT_FUNC: FstatFunc = get_libc_func!(FstatFunc, "fstat"); // fixme
     }
 
-    println!("intercepted fstat for {:?}", fd);
     injectFaults!(fd, "fstat", -1);
 
     FSTAT_FUNC(fd, buf)
